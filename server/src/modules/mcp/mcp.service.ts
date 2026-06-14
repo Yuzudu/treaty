@@ -41,29 +41,32 @@ export class McpService {
   ): Promise<void> {
     const server = new McpServer({ name: 'treaty', version: '1.0.0' });
 
-    server.tool('list_projects', 'List all projects', {}, () =>
-      this.callTool(() => this.projects.findAll()),
+    server.tool(
+      'list_projects',
+      'List all projects for a user',
+      { userId: z.string() },
+      ({ userId }) => this.callTool(() => this.projects.findAll(userId)),
     );
 
     server.tool(
       'get_project',
       'Get a project by ID',
-      { id: z.string() },
-      ({ id }) => this.callTool(() => this.projects.findOne(id)),
+      { userId: z.string(), id: z.string() },
+      ({ userId, id }) => this.callTool(() => this.projects.findOne(userId, id)),
     );
 
     server.tool(
       'create_project',
       'Create a new project',
-      { body: z.record(z.string(), z.unknown()) },
-      ({ body }) => this.callTool(() => this.projects.create(body)),
+      { userId: z.string(), title: z.string() },
+      ({ userId, title }) => this.callTool(() => this.projects.create(userId, { title })),
     );
 
     server.tool(
       'transition_project',
       'Transition a project to a new status',
-      { id: z.string(), to: z.string() },
-      ({ id, to }) => this.callTool(() => this.projects.transition(id, to)),
+      { userId: z.string(), id: z.string(), to: z.string() },
+      ({ userId, id, to }) => this.callTool(() => this.projects.transition(userId, id, { to } as any)),
     );
 
     server.tool(

@@ -14,7 +14,6 @@ export default function SettingsPage() {
         </p>
       </div>
       <div className="rounded-lg border p-6">
-        {/* Account settings form */}
         <p className="text-sm text-muted-foreground">Account settings coming soon.</p>
       </div>
     </div>

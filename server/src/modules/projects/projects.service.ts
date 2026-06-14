@@ -1,24 +1,67 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { eq, and, desc } from 'drizzle-orm';
+import { ProjectStatus, canTransition } from '@treaty/shared';
+import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
+import { projects } from '../../db/schema';
+import { CreateProjectDto } from './dto/create-project.dto';
+import { TransitionProjectDto } from './dto/transition-project.dto';
 
 @Injectable()
 export class ProjectsService {
-  findAll() {
-    // Query projects from DB
-    return [];
+  constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDB | null) {}
+
+  private get client(): DrizzleDB {
+    if (!this.db)
+      throw new InternalServerErrorException('Database not available');
+    return this.db;
   }
 
-  findOne(id: string) {
-    // Query single project from DB
-    return { id };
+  async findAll(userId: string) {
+    return this.client
+      .select()
+      .from(projects)
+      .where(eq(projects.userId, userId))
+      .orderBy(desc(projects.createdAt));
   }
 
-  create(_body: unknown) {
-    // Create project, set status DRAFT
-    return { id: 'stub' };
+  async findOne(userId: string, id: string) {
+    const [project] = await this.client
+      .select()
+      .from(projects)
+      .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+
+    if (!project) throw new NotFoundException(`Project not found`);
+    return project;
   }
 
-  transition(_id: string, _to: unknown) {
-    // Validate canTransition, persist new status
-    return { id: _id, status: _to };
+  async create(userId: string, dto: CreateProjectDto) {
+    const [project] = await this.client
+      .insert(projects)
+      .values({ title: dto.title, userId, status: ProjectStatus.DRAFT })
+      .returning();
+    return project;
+  }
+
+  async transition(userId: string, id: string, dto: TransitionProjectDto) {
+    const project = await this.findOne(userId, id);
+
+    if (!canTransition(project.status as ProjectStatus, dto.to)) {
+      throw new BadRequestException(
+        `Cannot transition from ${project.status} to ${dto.to}`,
+      );
+    }
+
+    const [updated] = await this.client
+      .update(projects)
+      .set({ status: dto.to })
+      .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+      .returning();
+    return updated;
   }
 }

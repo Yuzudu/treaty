@@ -1,22 +1,50 @@
-import type { Project } from "../types"
+'use client'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useProjects } from '../hooks/useProjects'
+import { ProjectCard } from './ProjectCard'
 
-interface ProjectListProps {
-  projects: Project[]
-}
+export function ProjectList() {
+  const { data: projects, isLoading, isError, refetch } = useProjects()
 
-export function ProjectList({ projects }: ProjectListProps) {
-  if (projects.length === 0) {
-    return <p className="text-muted-foreground text-sm">No projects yet.</p>
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 rounded-lg" />
+        ))}
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-muted-foreground">Failed to load projects.</p>
+        <button
+          onClick={() => refetch()}
+          className="mt-2 text-sm text-primary underline"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!projects?.length) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-muted-foreground">
+          No projects yet. Create your first one.
+        </p>
+      </div>
+    )
   }
 
   return (
-    <ul className="divide-y">
-      {projects.map((p) => (
-        <li key={p.id} className="py-3 text-sm">
-          <span className="font-medium">{p.title}</span>
-          <span className="text-muted-foreground ml-2 font-mono text-xs">{p.status}</span>
-        </li>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {projects.map((project) => (
+        <ProjectCard key={project.id} project={project} />
       ))}
-    </ul>
+    </div>
   )
 }

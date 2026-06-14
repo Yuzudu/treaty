@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query"
 import { useUserId } from "@/hooks/useUserId"
 import { projectsApi } from "../api/projects.api"
 
-export function useProjects() {
+export function useProject(id: string) {
   const { data: userId } = useUserId()
   return useQuery({
-    queryKey: ["projects", userId],
-    queryFn: () => projectsApi.list(userId!),
-    enabled: !!userId,
+    queryKey: ["projects", userId, id],
+    queryFn: () => projectsApi.get(userId!, id),
+    enabled: !!userId && !!id,
   })
 }
