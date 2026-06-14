@@ -2,6 +2,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjects } from '../hooks/useProjects'
 import { ProjectCard } from './ProjectCard'
+import { CreateProjectModal } from './CreateProjectModal'
 
 export function ProjectList() {
   const { data: projects, isLoading, isError, refetch } = useProjects()
@@ -32,10 +33,9 @@ export function ProjectList() {
 
   if (!projects?.length) {
     return (
-      <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground">
-          No projects yet. Create your first one.
-        </p>
+      <div className="flex flex-col items-center py-12 gap-3">
+        <p className="text-sm text-muted-foreground">No projects yet.</p>
+        <CreateProjectModal />
       </div>
     )
   }

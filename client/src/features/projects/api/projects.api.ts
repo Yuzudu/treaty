@@ -2,28 +2,30 @@ import { apiFetch } from "@/lib/api-client"
 import type { Project } from "../types"
 import type { ProjectStatus } from "@treaty/shared"
 
-function authHeader(userId: string) {
-  return { headers: { "x-user-id": userId } }
+function authHeaders(userId: string): HeadersInit {
+  return { "x-user-id": userId }
 }
 
-export const projectsApi = {
-  list: (userId: string) =>
-    apiFetch<Project[]>("/projects", authHeader(userId)),
+export function createProjectsApi(userId: string) {
+  return {
+    list: () =>
+      apiFetch<Project[]>("/projects", { headers: authHeaders(userId) }),
 
-  get: (userId: string, id: string) =>
-    apiFetch<Project>(`/projects/${id}`, authHeader(userId)),
+    get: (id: string) =>
+      apiFetch<Project>(`/projects/${id}`, { headers: authHeaders(userId) }),
 
-  create: (userId: string, title: string) =>
-    apiFetch<Project>("/projects", {
-      method: "POST",
-      body: JSON.stringify({ title }),
-      ...authHeader(userId),
-    }),
+    create: (title: string) =>
+      apiFetch<Project>("/projects", {
+        method: "POST",
+        body: JSON.stringify({ title }),
+        headers: authHeaders(userId),
+      }),
 
-  transition: (userId: string, id: string, to: ProjectStatus) =>
-    apiFetch<Project>(`/projects/${id}/transition`, {
-      method: "PATCH",
-      body: JSON.stringify({ to }),
-      ...authHeader(userId),
-    }),
+    transition: (id: string, to: ProjectStatus) =>
+      apiFetch<Project>(`/projects/${id}/transition`, {
+        method: "PATCH",
+        body: JSON.stringify({ to }),
+        headers: authHeaders(userId),
+      }),
+  }
 }

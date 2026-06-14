@@ -1,5 +1,5 @@
 export type { Project } from './types'
-export { projectsApi } from './api/projects.api'
+export { createProjectsApi } from './api/projects.api'
 export { useProjects } from './hooks/useProjects'
 export { useProject } from './hooks/useProject'
 export { useCreateProject } from './hooks/useCreateProject'

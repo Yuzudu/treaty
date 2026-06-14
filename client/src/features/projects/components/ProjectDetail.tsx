@@ -1,6 +1,8 @@
 'use client'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectStatus, ALLOWED_TRANSITIONS } from '@treaty/shared'
 import { useProject } from '../hooks/useProject'
 import { useTransition } from '../hooks/useTransition'
@@ -10,13 +12,29 @@ interface ProjectDetailProps {
   id: string
 }
 
+function ProjectDetailSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-5 w-24" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-16" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading } = useProject(id)
-  const { mutate: transition, isPending } = useTransition(id)
+  const { mutate: transition, isPending, variables: pendingTo } = useTransition(id)
 
-  if (isLoading) {
-    return <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
-  }
+  if (isLoading) return <ProjectDetailSkeleton />
 
   if (!project) {
     return <div className="py-12 text-center text-sm text-muted-foreground">Project not found.</div>
@@ -49,7 +67,10 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
                 disabled={isPending}
                 onClick={() => handleTransition(next)}
               >
-                {isPending ? 'Updating…' : <StatusBadge status={next} />}
+                {isPending && pendingTo === next && (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                )}
+                <StatusBadge status={next} />
               </Button>
             ))}
           </div>

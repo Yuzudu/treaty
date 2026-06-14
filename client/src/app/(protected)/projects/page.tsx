@@ -1,4 +1,4 @@
-import { CreateProjectModal, ProjectList } from "@/features/projects";
+import { CreateProjectModal, ProjectList } from "@/features/projects"
 
 export default function ProjectsPage() {
   return (
