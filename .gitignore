@@ -28,3 +28,10 @@ pnpm-debug.log*
 
 # Testing
 coverage/
+
+# Drizzle migrations output
+server/drizzle/
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
