@@ -15,6 +15,7 @@
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
+    "types": ["jest", "node"],
     "paths": {
       "@treaty/shared": ["../packages/shared/src/index.ts"]
     }
