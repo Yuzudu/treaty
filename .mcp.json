@@ -2,13 +2,13 @@
   "mcpServers": {
     "supabase": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=omkormjozkbqvrhxtrff&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+      "url": "https://mcp.supabase.com/mcp"
     },
     "treaty": {
       "type": "http",
       "url": "http://localhost:4000/mcp",
       "headers": {
-        "x-api-key": "REPLACE_WITH_MCP_API_KEY"
+        "x-api-key": "86d53f264de18a6f99ac3786d8de92cbb3b3fd82232d72b35405cf7a2c91196e"
       }
     }
   }
