@@ -1,15 +1,31 @@
 import { apiFetch } from "@/lib/api-client"
 import type { Project } from "../types"
+import type { ProjectStatus } from "@treaty/shared"
 
-// Align request/response shapes with NestJS DTOs
-export const projectsApi = {
-  list: () => apiFetch<Project[]>("/projects"),
-  get: (id: string) => apiFetch<Project>(`/projects/${id}`),
-  create: (body: { title: string }) =>
-    apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(body) }),
-  transition: (id: string, to: string) =>
-    apiFetch<Project>(`/projects/${id}/transition`, {
-      method: "PATCH",
-      body: JSON.stringify({ to }),
-    }),
+function authHeaders(userId: string): HeadersInit {
+  return { "x-user-id": userId }
+}
+
+export function createProjectsApi(userId: string) {
+  return {
+    list: () =>
+      apiFetch<Project[]>("/projects", { headers: authHeaders(userId) }),
+
+    get: (id: string) =>
+      apiFetch<Project>(`/projects/${id}`, { headers: authHeaders(userId) }),
+
+    create: (title: string) =>
+      apiFetch<Project>("/projects", {
+        method: "POST",
+        body: JSON.stringify({ title }),
+        headers: authHeaders(userId),
+      }),
+
+    transition: (id: string, to: ProjectStatus) =>
+      apiFetch<Project>(`/projects/${id}/transition`, {
+        method: "PATCH",
+        body: JSON.stringify({ to }),
+        headers: authHeaders(userId),
+      }),
+  }
 }

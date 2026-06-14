@@ -35,3 +35,6 @@ server/drizzle/
 # Supabase local
 supabase/.branches/
 supabase/.temp/
+
+# MCP config (contains API keys)
+.mcp.json

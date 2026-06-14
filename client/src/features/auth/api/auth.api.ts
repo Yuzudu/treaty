@@ -23,7 +23,7 @@ export async function signIn(_prevState: AuthResult, formData: FormData): Promis
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) return { error: error.message }
-  redirect("/dashboard")
+  redirect("/studio")
 }
 
 export async function signInWithMagicLink(_prevState: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -60,7 +60,7 @@ export async function resetPassword(_prevState: AuthResult, formData: FormData):
   const { error } = await supabase.auth.updateUser({ password })
 
   if (error) return { error: error.message }
-  redirect("/dashboard")
+  redirect("/studio")
 }
 
 export async function signOut(): Promise<void> {

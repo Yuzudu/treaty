@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) {
     const headersList = await headers()
-    const path = headersList.get("x-invoke-path") ?? "/dashboard"
+    const path = headersList.get("x-invoke-path") ?? "/studio"
     redirect(`/sign-in?redirectTo=${encodeURIComponent(path)}`)
   }
 
@@ -21,12 +21,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-sm font-semibold">
+            <Link href="/studio" className="text-sm font-semibold">
               Treaty
             </Link>
             <nav className="flex items-center gap-4">
               <Link
-                href="/dashboard"
+                href="/studio"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Studio
+              </Link>
+              <Link
+                href="/projects"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Projects
