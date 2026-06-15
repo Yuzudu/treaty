@@ -1,18 +1,18 @@
 'use client'
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { ProjectStatus } from "@treaty/shared"
-import { useUserId } from "@/hooks/useUserId"
-import { createProjectsApi } from "../api/projects.api"
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ProjectStatus } from '@treaty/shared'
+import { useAuth } from '@/hooks/useAuth'
+import { createProjectsApi } from '../api/projects.api'
 
 export function useTransition(projectId: string) {
-  const { data: userId } = useUserId()
+  const { data: auth } = useAuth()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (to: ProjectStatus) => createProjectsApi(userId!).transition(projectId, to),
+    mutationFn: (to: ProjectStatus) => createProjectsApi(auth!.token).transition(projectId, to),
     onSuccess: (updated) => {
-      queryClient.setQueryData(["projects", userId, projectId], updated)
-      queryClient.invalidateQueries({ queryKey: ["projects", userId] })
+      queryClient.setQueryData(['projects', auth?.userId, projectId], updated)
+      queryClient.invalidateQueries({ queryKey: ['projects', auth?.userId] })
     },
   })
 }

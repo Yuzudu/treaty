@@ -17,7 +17,7 @@ export default function HomePage() {
       </p>
       <div className="mt-10 flex justify-center gap-4">
         <Link
-          href="/signup"
+          href="/sign-in"
           className="rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 transition-opacity"
         >
           Get started free

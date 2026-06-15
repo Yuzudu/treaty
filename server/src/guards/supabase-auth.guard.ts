@@ -6,24 +6,54 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import * as jwt from 'jsonwebtoken';
 
-// Replace with real Supabase JWT verification via Supabase JWKS
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   private readonly logger = new Logger(SupabaseAuthGuard.name);
+  private readonly jwtSecret: string;
+
+  constructor() {
+    if (!process.env.SUPABASE_JWT_SECRET) {
+      throw new Error('SUPABASE_JWT_SECRET environment variable is not set');
+    }
+    this.jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  }
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
 
-    // Dev shortcut: x-user-id header bypasses JWT verification
-    const devUserId = request.headers['x-user-id'];
-    if (devUserId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (request as any).userId = devUserId;
-      this.logger.debug(`Dev auth: userId=${devUserId}`);
-      return true;
+    // Dev bypass — unreachable in production
+    if (process.env.NODE_ENV !== 'production') {
+      const devUserId = request.headers['x-user-id'] as string | undefined;
+      if (devUserId) {
+        request.userId = devUserId;
+        this.logger.debug(`Dev auth: userId=${devUserId}`);
+        return true;
+      }
     }
 
-    throw new UnauthorizedException('Authentication required');
+    const authHeader = request.headers['authorization'];
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    const token = authHeader.slice(7);
+
+    try {
+      const payload = jwt.verify(token, this.jwtSecret, {
+        algorithms: ['HS256'],
+      }) as jwt.JwtPayload;
+
+      if (!payload.sub) {
+        throw new UnauthorizedException('Token missing subject claim');
+      }
+
+      request.userId = payload.sub;
+      return true;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      throw new UnauthorizedException('Invalid or expired token');
+    }
   }
 }

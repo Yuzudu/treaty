@@ -1,31 +1,29 @@
-import { apiFetch } from "@/lib/api-client"
-import type { Project } from "../types"
-import type { ProjectStatus } from "@treaty/shared"
+import { apiFetch } from '@/lib/api-client'
+import type { Project } from '../types'
+import type { ProjectStatus } from '@treaty/shared'
 
-function authHeaders(userId: string): HeadersInit {
-  return { "x-user-id": userId }
-}
+export function createProjectsApi(token: string) {
+  const auth = { accessToken: token }
 
-export function createProjectsApi(userId: string) {
   return {
     list: () =>
-      apiFetch<Project[]>("/projects", { headers: authHeaders(userId) }),
+      apiFetch<Project[]>('/projects', auth),
 
     get: (id: string) =>
-      apiFetch<Project>(`/projects/${id}`, { headers: authHeaders(userId) }),
+      apiFetch<Project>(`/projects/${id}`, auth),
 
     create: (title: string) =>
-      apiFetch<Project>("/projects", {
-        method: "POST",
+      apiFetch<Project>('/projects', {
+        method: 'POST',
         body: JSON.stringify({ title }),
-        headers: authHeaders(userId),
+        ...auth,
       }),
 
     transition: (id: string, to: ProjectStatus) =>
       apiFetch<Project>(`/projects/${id}/transition`, {
-        method: "PATCH",
+        method: 'PATCH',
         body: JSON.stringify({ to }),
-        headers: authHeaders(userId),
+        ...auth,
       }),
   }
 }
