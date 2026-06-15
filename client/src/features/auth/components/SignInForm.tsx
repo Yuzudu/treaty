@@ -1,15 +1,17 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { use, useActionState, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { signInWithGoogle, signInWithMagicLink } from '../api/auth.api'
 import type { AuthResult } from '../types'
 
 const initialState: AuthResult = { error: null }
 
-export function SignInForm() {
+export function SignInForm({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error: callbackError } = use(searchParams)
   const [magicState, magicAction, magicPending] = useActionState(signInWithMagicLink, initialState)
   const [cooldown, setCooldown] = useState(0)
+  const [googlePending, setGooglePending] = useState(false)
   const sent = !magicState.error && !magicPending && magicState !== initialState
 
   useEffect(() => {
@@ -26,6 +28,11 @@ export function SignInForm() {
 
   return (
     <div className="space-y-6">
+      {callbackError && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Sign-in failed. Please try again.
+        </p>
+      )}
       <form action={magicAction} className="space-y-3">
         <div>
           <label htmlFor="email" className="block text-sm font-medium">
@@ -66,9 +73,13 @@ export function SignInForm() {
         </div>
       </div>
 
-      <form action={async () => { await signInWithGoogle() }}>
-        <Button type="submit" variant="outline" className="w-full">
-          Continue with Google
+      <form action={async () => {
+        setGooglePending(true)
+        const result = await signInWithGoogle()
+        if (result?.error) setGooglePending(false)
+      }}>
+        <Button type="submit" variant="outline" className="w-full" disabled={googlePending}>
+          {googlePending ? 'Redirecting…' : 'Continue with Google'}
         </Button>
       </form>
     </div>

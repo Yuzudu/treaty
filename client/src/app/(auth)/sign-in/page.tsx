@@ -1,11 +1,14 @@
-import Link from "next/link"
 import { SignInForm } from "@/features/auth"
 
 export const metadata = {
   title: "Sign in — Treaty",
 }
 
-export default function SignInPage() {
+export default function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
   return (
     <div className="space-y-6">
       <div>
@@ -14,7 +17,7 @@ export default function SignInPage() {
           Welcome back to Treaty.
         </p>
       </div>
-      <SignInForm />
+      <SignInForm searchParams={searchParams} />
     </div>
   )
 }

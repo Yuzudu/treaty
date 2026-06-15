@@ -34,5 +34,4 @@ export async function apiFetch<T>(
 
 export const apiClient = {
   health: () => apiFetch<{ status: string }>("/health"),
-  // TODO(phase-1): add projects, assets, shareLinks, orders endpoints
 }
