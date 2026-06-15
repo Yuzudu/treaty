@@ -1,98 +1,76 @@
-"use client"
+'use client'
 
-import { useActionState, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { signIn, signInWithMagicLink } from "../api/auth.api"
-import type { AuthResult } from "../types"
+import { useActionState, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { signInWithGoogle, signInWithMagicLink } from '../api/auth.api'
+import type { AuthResult } from '../types'
 
 const initialState: AuthResult = { error: null }
 
 export function SignInForm() {
-  const [mode, setMode] = useState<"password" | "magic">("password")
-  const [passwordState, passwordAction, passwordPending] = useActionState(signIn, initialState)
   const [magicState, magicAction, magicPending] = useActionState(signInWithMagicLink, initialState)
+  const [cooldown, setCooldown] = useState(0)
+  const sent = !magicState.error && !magicPending && magicState !== initialState
+
+  useEffect(() => {
+    if (!sent) return
+    setCooldown(30)
+    const interval = setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1) { clearInterval(interval); return 0 }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [sent])
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMode("password")}
-          className={`text-sm ${mode === "password" ? "font-semibold" : "text-muted-foreground"}`}
-        >
-          Password
-        </button>
-        <span className="text-muted-foreground">·</span>
-        <button
-          type="button"
-          onClick={() => setMode("magic")}
-          className={`text-sm ${mode === "magic" ? "font-semibold" : "text-muted-foreground"}`}
-        >
-          Magic link
-        </button>
+    <div className="space-y-6">
+      <form action={magicAction} className="space-y-3">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        {magicState.error && (
+          <p className="text-sm text-destructive">{magicState.error}</p>
+        )}
+        {sent && (
+          <p className="text-sm text-green-600">Check your email for a sign-in link.</p>
+        )}
+        <Button type="submit" className="w-full" disabled={magicPending || cooldown > 0}>
+          {magicPending
+            ? 'Sending…'
+            : cooldown > 0
+            ? `Resend in ${cooldown}s`
+            : sent
+            ? 'Resend magic link'
+            : 'Send magic link'}
+        </Button>
+      </form>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">or</span>
+        </div>
       </div>
 
-      {mode === "password" ? (
-        <form action={passwordAction} className="space-y-3">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          {passwordState.error && (
-            <p className="text-sm text-destructive">{passwordState.error}</p>
-          )}
-          <Button type="submit" className="w-full" disabled={passwordPending}>
-            {passwordPending ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-      ) : (
-        <form action={magicAction} className="space-y-3">
-          <div>
-            <label htmlFor="magic-email" className="block text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="magic-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          {magicState.error && (
-            <p className="text-sm text-destructive">{magicState.error}</p>
-          )}
-          {!magicState.error && !magicPending && magicState !== initialState && (
-            <p className="text-sm text-green-600">Check your email for a sign-in link.</p>
-          )}
-          <Button type="submit" className="w-full" disabled={magicPending}>
-            {magicPending ? "Sending…" : "Send magic link"}
-          </Button>
-        </form>
-      )}
+      <form action={async () => { await signInWithGoogle() }}>
+        <Button type="submit" variant="outline" className="w-full">
+          Continue with Google
+        </Button>
+      </form>
     </div>
   )
 }

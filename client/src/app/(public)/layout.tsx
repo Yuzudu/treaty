@@ -16,7 +16,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/sign-in"
               className="rounded-md bg-foreground px-3 py-1.5 text-sm text-background hover:opacity-90 transition-opacity"
             >
               Get started

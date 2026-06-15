@@ -1,14 +1,14 @@
 'use client'
-import { useQuery } from "@tanstack/react-query"
-import { useUserId } from "@/hooks/useUserId"
-import { createProjectsApi } from "../api/projects.api"
+import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/hooks/useAuth'
+import { createProjectsApi } from '../api/projects.api'
 
 export function useProject(id: string) {
-  const { data: userId } = useUserId()
+  const { data: auth } = useAuth()
   return useQuery({
-    queryKey: ["projects", userId, id],
-    queryFn: () => createProjectsApi(userId!).get(id),
-    enabled: !!userId && !!id,
+    queryKey: ['projects', auth?.userId, id],
+    queryFn: () => createProjectsApi(auth!.token).get(id),
+    enabled: !!auth && !!id,
     staleTime: 30_000,
   })
 }

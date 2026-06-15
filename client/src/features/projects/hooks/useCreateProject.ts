@@ -1,17 +1,17 @@
 'use client'
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { ProjectStatus } from "@treaty/shared"
-import { useUserId } from "@/hooks/useUserId"
-import { createProjectsApi } from "../api/projects.api"
-import type { Project } from "../types"
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ProjectStatus } from '@treaty/shared'
+import { useAuth } from '@/hooks/useAuth'
+import { createProjectsApi } from '../api/projects.api'
+import type { Project } from '../types'
 
 export function useCreateProject() {
-  const { data: userId } = useUserId()
+  const { data: auth } = useAuth()
   const queryClient = useQueryClient()
-  const listKey = ["projects", userId]
+  const listKey = ['projects', auth?.userId]
 
   return useMutation({
-    mutationFn: (title: string) => createProjectsApi(userId!).create(title),
+    mutationFn: (title: string) => createProjectsApi(auth!.token).create(title),
     onMutate: async (title) => {
       await queryClient.cancelQueries({ queryKey: listKey })
       const previous = queryClient.getQueryData<Project[]>(listKey)
