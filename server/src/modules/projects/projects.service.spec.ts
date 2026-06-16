@@ -95,5 +95,28 @@ describe('ProjectsService', () => {
         service.transition('user-1', 'proj-1', { to: ProjectStatus.DELIVERED }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('persists priceCents and currency when transitioning to AWAITING_PAYMENT', async () => {
+      const previewShared = {
+        ...mockProject,
+        status: ProjectStatus.PREVIEW_SHARED,
+      };
+      const awaitingPayment = {
+        ...mockProject,
+        status: ProjectStatus.AWAITING_PAYMENT,
+        priceCents: 50000,
+        currency: 'PHP',
+      };
+      mockDb.select.mockReturnValue(makeChain([previewShared]));
+      mockDb.update.mockReturnValue(makeChain([awaitingPayment]));
+
+      const result = await service.transition('user-1', 'proj-1', {
+        to: ProjectStatus.AWAITING_PAYMENT,
+        priceCents: 50000,
+        currency: 'PHP',
+      });
+
+      expect(result).toEqual(awaitingPayment);
+    });
   });
 });
