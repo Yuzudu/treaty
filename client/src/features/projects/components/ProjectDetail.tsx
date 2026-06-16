@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectStatus, ALLOWED_TRANSITIONS } from '@treaty/shared'
 import { useProject } from '../hooks/useProject'
 import { useTransition } from '../hooks/useTransition'
+import { useProjectAssets } from '../hooks/useProjectAssets'
 import { StatusBadge } from './StatusBadge'
 
 interface ProjectDetailProps {
@@ -32,6 +33,7 @@ function ProjectDetailSkeleton() {
 
 export function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading } = useProject(id)
+  const { data: assets, isLoading: assetsLoading } = useProjectAssets(id)
   const { mutate: transition, isPending, variables: pendingTo } = useTransition(id)
 
   if (isLoading) return <ProjectDetailSkeleton />
@@ -77,9 +79,46 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
         </div>
       )}
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium">Assets</h2>
-        <p className="text-sm text-muted-foreground">No assets yet.</p>
+      <div className="space-y-4">
+        <h2 className="text-lg font-medium text-foreground">Assets</h2>
+        
+        {assetsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Skeleton className="aspect-video w-full rounded-xl" />
+          </div>
+        ) : !assets || assets.length === 0 ? (
+          <p className="text-sm text-muted-foreground bg-muted/5 border border-dashed border-border p-8 text-center rounded-xl">
+            No assets uploaded to this project yet.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            {assets.map((asset: any) => (
+              <div key={asset.id} className="relative group border border-border rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md transition-all duration-200 p-2.5">
+                <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted flex items-center justify-center relative border border-border/40">
+                  {asset.assetType === 'image' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={asset.watermarkedUrl}
+                      alt="Asset preview"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <video
+                      src={asset.watermarkedUrl}
+                      controls
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </div>
+                <div className="p-2 flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/60 px-2 py-0.5 rounded border border-border/20">
+                    {asset.assetType}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

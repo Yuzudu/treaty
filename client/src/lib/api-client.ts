@@ -16,11 +16,19 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const { accessToken, ...fetchInit } = init ?? {}
 
+  const headers: Record<string, string> = {
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+  }
+
+  // Only set application/json content-type if not sending FormData
+  if (!(fetchInit.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(`${env.apiUrl}${path}`, {
     ...fetchInit,
     headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...headers,
       ...fetchInit.headers,
     },
   })
@@ -31,7 +39,6 @@ export async function apiFetch<T>(
 
   return res.json() as Promise<T>
 }
-
 export const apiClient = {
   health: () => apiFetch<{ status: string }>("/health"),
 }

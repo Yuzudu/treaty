@@ -25,5 +25,18 @@ export function createProjectsApi(token: string) {
         body: JSON.stringify({ to }),
         ...auth,
       }),
+
+    uploadAsset: (id: string, file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiFetch<any>(`/projects/${id}/assets`, {
+        method: 'POST',
+        body: formData,
+        ...auth,
+      })
+    },
+
+    listAssets: (id: string) =>
+      apiFetch<any[]>(`/projects/${id}/assets`, auth),
   }
 }
