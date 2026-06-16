@@ -3,6 +3,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production' && !process.env.WEB_URL) {
+    throw new Error('WEB_URL environment variable is not set');
+  }
+
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({
@@ -13,6 +17,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
     }),
   );

@@ -26,7 +26,10 @@ export type DrizzleDB = NodePgDatabase<typeof schema>
         }
 
         try {
-          const pool = new Pool({ connectionString })
+          const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: true } })
+          pool.on('error', (err) => {
+            logger.error(`Postgres pool error: ${err.message}`)
+          })
           const client = await pool.connect()
           client.release()
           logger.log('Database connection established')

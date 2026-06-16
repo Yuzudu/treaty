@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { eq, and, desc } from 'drizzle-orm';
@@ -27,7 +28,8 @@ export class ProjectsService {
       .select()
       .from(projects)
       .where(eq(projects.userId, userId))
-      .orderBy(desc(projects.createdAt));
+      .orderBy(desc(projects.createdAt))
+      .limit(100);
   }
 
   async findOne(userId: string, id: string) {
@@ -60,8 +62,18 @@ export class ProjectsService {
     const [updated] = await this.client
       .update(projects)
       .set({ status: dto.to })
-      .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+      .where(
+        and(
+          eq(projects.id, id),
+          eq(projects.userId, userId),
+          eq(projects.status, project.status),
+        ),
+      )
       .returning();
+
+    if (!updated) {
+      throw new ConflictException('Project status changed concurrently, retry');
+    }
     return updated;
   }
 }

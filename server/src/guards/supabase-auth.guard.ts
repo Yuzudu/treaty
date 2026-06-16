@@ -7,20 +7,28 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   private readonly logger = new Logger(SupabaseAuthGuard.name);
   private readonly jwtSecret: string;
+  private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
 
   constructor() {
     if (!process.env.SUPABASE_JWT_SECRET) {
       throw new Error('SUPABASE_JWT_SECRET environment variable is not set');
     }
+    if (!process.env.SUPABASE_URL) {
+      throw new Error('SUPABASE_URL environment variable is not set');
+    }
     this.jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    this.jwks = createRemoteJWKSet(
+      new URL(`${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`),
+    );
   }
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
 
     // Dev bypass — unreachable in production
@@ -39,17 +47,26 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     const token = authHeader.slice(7);
+    const header = jwt.decode(token, { complete: true })?.header;
 
     try {
-      const payload = jwt.verify(token, this.jwtSecret, {
-        algorithms: ['HS256'],
-      }) as jwt.JwtPayload;
+      let sub: string | undefined;
 
-      if (!payload.sub) {
-        throw new UnauthorizedException('Token missing subject claim');
+      if (header?.alg === 'HS256') {
+        const payload = jwt.verify(token, this.jwtSecret, {
+          algorithms: ['HS256'],
+        }) as jwt.JwtPayload;
+        sub = payload.sub;
+      } else {
+        const { payload } = await jwtVerify(token, this.jwks, {
+          issuer: `${process.env.SUPABASE_URL}/auth/v1`,
+          audience: 'authenticated',
+        });
+        sub = payload.sub;
       }
 
-      request.userId = payload.sub;
+      if (!sub) throw new UnauthorizedException('Token missing subject claim');
+      request.userId = sub;
       return true;
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
