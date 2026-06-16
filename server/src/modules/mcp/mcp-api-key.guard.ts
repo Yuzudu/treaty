@@ -4,7 +4,7 @@ import {
   Injectable,
   OnModuleInit,
 } from '@nestjs/common';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeStringEqual } from '../../common/timing-safe-equal';
 
 @Injectable()
 export class McpApiKeyGuard implements CanActivate, OnModuleInit {
@@ -23,7 +23,7 @@ export class McpApiKeyGuard implements CanActivate, OnModuleInit {
     const key = req.headers['x-api-key'];
     const expected = process.env.MCP_API_KEY!;
 
-    if (!key || key.length !== expected.length) return false;
-    return timingSafeEqual(Buffer.from(key), Buffer.from(expected));
+    if (!key) return false;
+    return timingSafeStringEqual(key, expected);
   }
 }
