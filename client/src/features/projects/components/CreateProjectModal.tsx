@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -35,6 +36,9 @@ export function CreateProjectModal() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Project</DialogTitle>
+          <DialogDescription className="sr-only">
+            Enter a title for your new project.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
