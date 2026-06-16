@@ -17,7 +17,10 @@ export class XenditPaymentProvider implements PaymentProvider {
     return this.client;
   }
 
-  async createSubAccount(params: { email: string; name: string }): Promise<{ subAccountId: string }> {
+  async createSubAccount(params: {
+    email: string;
+    name: string;
+  }): Promise<{ subAccountId: string }> {
     const account = await this.getClient().createSubAccount({
       email: params.email,
       businessName: params.name,
@@ -25,7 +28,9 @@ export class XenditPaymentProvider implements PaymentProvider {
     return { subAccountId: account.id };
   }
 
-  async getSubAccountStatus(subAccountId: string): Promise<{ active: boolean }> {
+  async getSubAccountStatus(
+    subAccountId: string,
+  ): Promise<{ active: boolean }> {
     const account = await this.getClient().getSubAccount(subAccountId);
     return { active: account.status === 'ACTIVE' };
   }
