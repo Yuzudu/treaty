@@ -1,18 +1,15 @@
-import { Controller, Post, RawBodyRequest, Req, Headers } from '@nestjs/common';
-import { Request } from 'express';
-import { WebhooksService } from './webhooks.service';
+import { Controller, Post, Body, Headers } from '@nestjs/common';
+import { WebhooksService, XenditWebhookPayload } from './webhooks.service';
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
-  @Post('stripe')
-  stripe(
-    @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
+  @Post('xendit')
+  xendit(
+    @Body() body: XenditWebhookPayload,
+    @Headers('x-callback-token') token: string = '',
   ) {
-    // Verify signature before processing
-    this.webhooksService.handleStripeEvent(req.rawBody ?? Buffer.alloc(0), signature);
-    return { received: true };
+    return this.webhooksService.handleXenditEvent(body, token);
   }
 }

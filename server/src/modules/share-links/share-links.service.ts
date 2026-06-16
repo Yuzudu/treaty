@@ -9,6 +9,6 @@ export class ShareLinksService {
 
   findByToken(_token: string) {
     // Look up share link, validate expiry
-    return { projectId: 'stub', token: _token };
+    return Promise.resolve({ projectId: 'stub', token: _token });
   }
 }

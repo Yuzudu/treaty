@@ -52,36 +52,41 @@ export class McpService {
       'get_project',
       'Get a project by ID',
       { userId: z.string(), id: z.string() },
-      ({ userId, id }) => this.callTool(() => this.projects.findOne(userId, id)),
+      ({ userId, id }) =>
+        this.callTool(() => this.projects.findOne(userId, id)),
     );
 
     server.tool(
       'create_project',
       'Create a new project',
       { userId: z.string(), title: z.string() },
-      ({ userId, title }) => this.callTool(() => this.projects.create(userId, { title })),
+      ({ userId, title }) =>
+        this.callTool(() => this.projects.create(userId, { title })),
     );
 
     server.tool(
       'transition_project',
       'Transition a project to a new status',
       { userId: z.string(), id: z.string(), to: z.string() },
-      ({ userId, id, to }) => this.callTool(() => this.projects.transition(userId, id, { to } as any)),
+      ({ userId, id, to }) =>
+        this.callTool(() =>
+          this.projects.transition(userId, id, { to } as any),
+        ),
     );
 
     server.tool(
       'create_checkout',
-      'Create a Stripe checkout session for a project',
-      { projectId: z.string() },
-      ({ projectId }) =>
-        this.callTool(() => this.orders.createCheckout(projectId)),
+      'Create a Xendit checkout session for a project via its share-link token',
+      { token: z.string() },
+      ({ token }) =>
+        this.callTool(() => this.orders.createCheckoutFromShareToken(token)),
     );
 
     server.tool(
       'get_order',
-      'Get an order by ID',
-      { id: z.string() },
-      ({ id }) => this.callTool(() => this.orders.findOne(id)),
+      'Get an order by ID, scoped to a user',
+      { userId: z.string(), id: z.string() },
+      ({ userId, id }) => this.callTool(() => this.orders.findOne(userId, id)),
     );
 
     server.tool(

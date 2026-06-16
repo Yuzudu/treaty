@@ -11,7 +11,10 @@ const mockProjects = {
   create: jest.fn(),
   transition: jest.fn(),
 };
-const mockOrders = { createCheckout: jest.fn(), findOne: jest.fn() };
+const mockOrders = {
+  createCheckoutFromShareToken: jest.fn(),
+  findOne: jest.fn(),
+};
 const mockAssets = { findAll: jest.fn() };
 const mockShareLinks = { create: jest.fn(), findByToken: jest.fn() };
 

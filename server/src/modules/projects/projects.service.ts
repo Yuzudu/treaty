@@ -59,9 +59,17 @@ export class ProjectsService {
       );
     }
 
+    const updateValues: Partial<typeof projects.$inferInsert> = {
+      status: dto.to,
+    };
+    if (dto.to === ProjectStatus.AWAITING_PAYMENT) {
+      updateValues.priceCents = dto.priceCents;
+      updateValues.currency = dto.currency ?? 'PHP';
+    }
+
     const [updated] = await this.client
       .update(projects)
-      .set({ status: dto.to })
+      .set(updateValues)
       .where(
         and(
           eq(projects.id, id),

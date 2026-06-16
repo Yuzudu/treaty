@@ -10,11 +10,13 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ShareLinksModule } from './modules/share-links/share-links.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { PaymentModule } from './providers/payment.module';
 
 @Module({
   imports: [
     ConfigModule,
     DbModule,
+    PaymentModule,
     HealthModule,
     ProjectsModule,
     AssetsModule,
