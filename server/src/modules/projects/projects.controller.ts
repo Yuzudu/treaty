@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Param,
+  ParseUUIDPipe,
   Body,
   Req,
   UseGuards,
@@ -29,7 +30,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  findOne(@Req() req: AuthRequest, @Param('id') id: string) {
+  findOne(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.projectsService.findOne(req.userId, id);
   }
 
@@ -41,7 +42,7 @@ export class ProjectsController {
   @Patch(':id/transition')
   transition(
     @Req() req: AuthRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: TransitionProjectDto,
   ) {
     return this.projectsService.transition(req.userId, id, dto);

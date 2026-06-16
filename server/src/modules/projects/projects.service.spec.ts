@@ -1,16 +1,26 @@
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { ProjectStatus } from '@treaty/shared';
+import type { DrizzleDB } from '../db/db.module';
 
-function makeChain(value: unknown = []) {
-  const p = Promise.resolve(value) as any;
-  p.from = () => makeChain(value);
-  p.where = () => makeChain(value);
-  p.orderBy = () => Promise.resolve(value);
-  p.set = () => makeChain(value);
-  p.values = () => makeChain(value);
-  p.returning = () => Promise.resolve(value);
-  return p;
+interface Chain<T> extends Promise<T> {
+  from(): Chain<T>;
+  where(): Chain<T>;
+  orderBy(): { limit(): Promise<T> };
+  set(): Chain<T>;
+  values(): Chain<T>;
+  returning(): Promise<T>;
+}
+
+function makeChain<T>(value: T): Chain<T> {
+  const chain = Promise.resolve(value) as Chain<T>;
+  chain.from = () => makeChain(value);
+  chain.where = () => makeChain(value);
+  chain.orderBy = () => ({ limit: () => Promise.resolve(value) });
+  chain.set = () => makeChain(value);
+  chain.values = () => makeChain(value);
+  chain.returning = () => Promise.resolve(value);
+  return chain;
 }
 
 const mockProject = {
@@ -21,9 +31,15 @@ const mockProject = {
   createdAt: new Date(),
 };
 
+type MockDb = {
+  select: jest.Mock;
+  insert: jest.Mock;
+  update: jest.Mock;
+};
+
 describe('ProjectsService', () => {
   let service: ProjectsService;
-  let mockDb: any;
+  let mockDb: MockDb;
 
   beforeEach(() => {
     mockDb = {
@@ -31,7 +47,7 @@ describe('ProjectsService', () => {
       insert: jest.fn().mockReturnValue(makeChain([mockProject])),
       update: jest.fn().mockReturnValue(makeChain([mockProject])),
     };
-    service = new ProjectsService(mockDb);
+    service = new ProjectsService(mockDb as unknown as DrizzleDB);
   });
 
   describe('findAll', () => {
