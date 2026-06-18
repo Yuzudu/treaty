@@ -5,6 +5,8 @@ import {
   timestamp,
   integer,
   numeric,
+  text,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
@@ -37,3 +39,34 @@ export const transactions = pgTable('transactions', {
     .notNull()
     .defaultNow(),
 });
+
+export const assets = pgTable('assets', {
+  id: uuid('assetid').primaryKey().defaultRandom(),
+  projectId: uuid('projectid').references(() => projects.id),
+  assetType: varchar('assettype'),
+  fileUrl: text('fileurl'),
+  watermarkedUrl: text('watermarkedurl'),
+  expiresAt: timestamp('expiresat', { withTimezone: true }),
+});
+
+export const collaborations = pgTable('collaborations', {
+  id: uuid('collabid').primaryKey().defaultRandom(),
+  assetId: uuid('assetid').references(() => assets.id),
+  commentText: text('commenttext'),
+});
+
+export const annotationcoordinates = pgTable('annotationcoordinates', {
+  id: uuid('annotationid').primaryKey().defaultRandom(),
+  collabId: uuid('collabid').references(() => collaborations.id),
+  coordX: numeric('coordx'),
+  coordY: numeric('coordy'),
+  boundingBox: jsonb('boundingbox'),
+});
+
+export const videoannotation = pgTable('videoannotation', {
+  id: uuid('videoannotationid').primaryKey().defaultRandom(),
+  collabId: uuid('collabid').references(() => collaborations.id),
+  timestampSeconds: numeric('timestampseconds'),
+  duration: numeric('duration'),
+});
+

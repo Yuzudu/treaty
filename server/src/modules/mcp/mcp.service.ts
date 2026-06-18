@@ -92,8 +92,9 @@ export class McpService {
     server.tool(
       'list_assets',
       'List all assets for a project',
-      { projectId: z.string() },
-      ({ projectId }) => this.callTool(() => this.assets.findAll(projectId)),
+      { userId: z.string(), projectId: z.string() },
+      ({ userId, projectId }) =>
+        this.callTool(() => this.assets.findAll(userId, projectId)),
     );
 
     server.tool(

@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,7 +7,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectStatus, ALLOWED_TRANSITIONS } from '@treaty/shared'
 import { useProject } from '../hooks/useProject'
 import { useTransition } from '../hooks/useTransition'
+import { useProjectAssets } from '../hooks/useProjectAssets'
 import { StatusBadge } from './StatusBadge'
+import { useScreenshotProtection } from '@/hooks/useScreenshotProtection'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+
 
 interface ProjectDetailProps {
   id: string
@@ -32,7 +37,10 @@ function ProjectDetailSkeleton() {
 
 export function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading } = useProject(id)
+  const { data: assets, isLoading: assetsLoading } = useProjectAssets(id)
   const { mutate: transition, isPending, variables: pendingTo } = useTransition(id)
+  const isProtected = useScreenshotProtection()
+  const [selectedAsset, setSelectedAsset] = useState<any | null>(null)
 
   if (isLoading) return <ProjectDetailSkeleton />
 
@@ -77,10 +85,112 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
         </div>
       )}
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium">Assets</h2>
-        <p className="text-sm text-muted-foreground">No assets yet.</p>
+      <div className="space-y-4">
+        <h2 className="text-lg font-medium text-foreground">Assets</h2>
+        
+        {isProtected ? (
+          <div className="flex flex-col items-center justify-center border border-destructive/20 bg-destructive/5 text-destructive p-12 text-center rounded-xl gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 animate-pulse">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
+            <p className="text-sm font-semibold tracking-tight">Screenshot / Snip Detection Shield Active</p>
+            <p className="text-xs text-muted-foreground max-w-sm">Media content is hidden. Please bring focus back to this browser window to resume viewing.</p>
+          </div>
+        ) : assetsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Skeleton className="aspect-video w-full rounded-xl" />
+          </div>
+        ) : !assets || assets.length === 0 ? (
+          <p className="text-sm text-muted-foreground bg-muted/5 border border-dashed border-border p-8 text-center rounded-xl">
+            No assets uploaded to this project yet.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5" onContextMenu={(e) => e.preventDefault()}>
+            {assets.map((asset: any) => (
+              <div
+                key={asset.id}
+                onClick={() => asset.watermarkedUrl && setSelectedAsset(asset)}
+                className="relative group border border-border rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md transition-all duration-200 p-2.5 cursor-pointer"
+              >
+                <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted relative border border-border/40 flex items-center justify-center p-4">
+                  {!asset.watermarkedUrl ? (
+                    <div className="flex flex-col items-center justify-center text-center gap-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground font-medium">Generating preview...</p>
+                    </div>
+                  ) : asset.assetType === 'image' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={asset.watermarkedUrl}
+                      alt="Asset preview"
+                      className="absolute inset-0 w-full h-full object-contain"
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  ) : (
+                    <video
+                      src={asset.watermarkedUrl}
+                      controls
+                      className="absolute inset-0 w-full h-full object-contain"
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  )}
+                </div>
+                <div className="p-2 flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/60 px-2 py-0.5 rounded border border-border/20">
+                    {asset.assetType}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      <Dialog open={!!selectedAsset} onOpenChange={(open) => !open && setSelectedAsset(null)}>
+        <DialogContent className="max-w-[95vw] md:max-w-[90vw] lg:max-w-7xl p-6 rounded-2xl border border-border bg-card shadow-lg flex flex-col items-center justify-center gap-4">
+          <DialogTitle className="sr-only">Asset Preview</DialogTitle>
+          <div className="relative w-full h-[75vh] rounded-xl overflow-hidden bg-muted border border-border/40 flex items-center justify-center">
+            {isProtected ? (
+              <div className="flex flex-col items-center justify-center text-center gap-2 p-12 text-destructive">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 animate-pulse">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                </svg>
+                <p className="text-sm font-semibold tracking-tight">Screenshot / Snip Detection Shield Active</p>
+                <p className="text-xs text-muted-foreground">Media content is hidden. Please bring focus back to resume viewing.</p>
+              </div>
+            ) : selectedAsset ? (
+              selectedAsset.assetType === 'image' ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={selectedAsset.watermarkedUrl}
+                  alt="Full preview"
+                  className="w-full h-full object-contain"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              ) : (
+                <video
+                  src={selectedAsset.watermarkedUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              )
+            ) : null}
+          </div>
+          {selectedAsset && (
+            <div className="flex items-center justify-between w-full px-2">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/60 px-2 py-0.5 rounded border border-border/20">
+                {selectedAsset.assetType}
+              </span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
