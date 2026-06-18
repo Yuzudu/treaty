@@ -62,4 +62,19 @@ export class SupabaseStorageService {
     const { data } = this.supabase.storage.from(bucketName).getPublicUrl(path);
     return data.publicUrl;
   }
+
+  /**
+   * Downloads a file from a specific bucket and returns it as a Buffer
+   */
+  async downloadFile(bucketName: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.supabase.storage.from(bucketName).download(path);
+
+    if (error) {
+      this.logger.error(`Failed to download file from bucket ${bucketName}/${path}: ${error.message}`);
+      throw new Error(`Download failed: ${error.message}`);
+    }
+
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
 }

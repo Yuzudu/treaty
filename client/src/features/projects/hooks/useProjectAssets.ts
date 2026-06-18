@@ -11,6 +11,11 @@ export function useProjectAssets(projectId: string) {
     queryKey: ['projects', auth?.userId, projectId, 'assets'],
     queryFn: () => createProjectsApi(auth!.token).listAssets(projectId),
     enabled: !!auth && !!projectId,
-    staleTime: 30_000,
+    staleTime: 5_000,
+    refetchInterval: (query) => {
+      const data = query?.state?.data as any[] | undefined;
+      const hasPending = data?.some((asset: any) => !asset.watermarkedUrl);
+      return hasPending ? 2000 : false;
+    },
   })
 }
