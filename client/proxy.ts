@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/proxy'
+import {  updateSession } from '@/lib/supabase/proxy'
 
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
@@ -15,7 +15,7 @@ export async function proxy(request: NextRequest) {
   if (!user && isAppRoute) {
     const redirectTo = request.nextUrl.clone()
     redirectTo.pathname = '/sign-in'
-    redirectTo.searchParams.set('redirectTo', pathname)
+    redirectTo.searchParams.set('next', pathname)
     return NextResponse.redirect(redirectTo)
   }
 
