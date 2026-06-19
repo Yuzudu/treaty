@@ -133,7 +133,10 @@ export class AssetsService {
     if (assetType === 'image') {
       watermarkedBuffer = await this.watermarkService.watermarkImage(buffer);
     } else {
-      watermarkedBuffer = await this.watermarkService.watermarkVideo(buffer, fileExtension);
+      watermarkedBuffer = await this.watermarkService.watermarkVideo(
+        buffer,
+        fileExtension,
+      );
     }
 
     // Upload watermarked preview to public-previews bucket
@@ -145,7 +148,10 @@ export class AssetsService {
     );
 
     // Get public URL of the watermarked preview
-    const publicUrl = this.storageService.getPublicUrl('public-previews', publicPath);
+    const publicUrl = this.storageService.getPublicUrl(
+      'public-previews',
+      publicPath,
+    );
 
     // Update database record with the public watermarked URL
     await this.client
@@ -153,6 +159,8 @@ export class AssetsService {
       .set({ watermarkedUrl: publicUrl })
       .where(eq(assets.id, assetId));
 
-    this.logger.log(`Successfully completed background watermarking for asset ${assetId}`);
+    this.logger.log(
+      `Successfully completed background watermarking for asset ${assetId}`,
+    );
   }
 }

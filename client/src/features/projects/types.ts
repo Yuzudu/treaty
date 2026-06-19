@@ -7,4 +7,6 @@ export interface Project {
   title: string
   status: ProjectStatus
   createdAt: string
+  priceCents?: number | null
+  currency?: string | null
 }

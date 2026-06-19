@@ -65,12 +65,13 @@ describe('XenditClient', () => {
           }),
       });
 
+      // Inputs are in centavos (minor unit); Xendit expects pesos (major unit)
       const result = await client.createInvoice({
         externalId: 'order_proj-1',
-        amount: 50000,
+        amount: 50000, // PHP 500.00 in centavos
         currency: 'PHP',
         subAccountId: 'acc_123',
-        platformFeeAmount: 500,
+        platformFeeAmount: 500, // PHP 5.00 in centavos
         successRedirectUrl: 'https://app.example.com/success',
         failureRedirectUrl: 'https://app.example.com/failure',
       });
@@ -82,9 +83,11 @@ describe('XenditClient', () => {
       const [, init] = fetchMock.mock.calls[0] as [string, CapturedRequestInit];
       expect(init.headers['for-user-id']).toBe('acc_123');
       const body = JSON.parse(init.body) as {
+        amount: number;
         fees: Array<{ type: string; value: number }>;
       };
-      expect(body.fees).toEqual([{ type: 'PLATFORM_FEE', value: 500 }]);
+      expect(body.amount).toBe(500); // PHP 500.00 sent to Xendit
+      expect(body.fees).toEqual([{ type: 'PLATFORM_FEE', value: 5 }]); // PHP 5.00
     });
   });
 

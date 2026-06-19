@@ -3,13 +3,12 @@ import {
   Inject,
   Logger,
   UnauthorizedException,
-  NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { ProjectStatus } from '@treaty/shared';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
-import { projects, transactions } from '../../db/schema';
+import { projects, transactions, users } from '../../db/schema';
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -17,6 +16,11 @@ import {
 
 export interface XenditWebhookPayload {
   external_id: string;
+  status: string;
+}
+
+export interface XenditAccountWebhookPayload {
+  id: string;
   status: string;
 }
 
@@ -43,6 +47,23 @@ export class WebhooksService {
       throw new UnauthorizedException('Invalid webhook token');
     }
 
+    if (payload.status === 'EXPIRED') {
+      // Clear PENDING so a new buyer can attempt checkout (partial unique index allows this)
+      await this.client
+        .update(transactions)
+        .set({ payoutStatus: 'EXPIRED' })
+        .where(
+          and(
+            eq(transactions.paymentIntentId, payload.external_id),
+            eq(transactions.payoutStatus, 'PENDING'),
+          ),
+        );
+      this.logger.log(
+        `Invoice ${payload.external_id} expired — transaction cleared`,
+      );
+      return;
+    }
+
     if (payload.status !== 'PAID') {
       this.logger.log(`Ignoring Xendit event with status ${payload.status}`);
       return;
@@ -57,7 +78,7 @@ export class WebhooksService {
       this.logger.warn(
         `Webhook for unknown paymentIntentId=${payload.external_id}`,
       );
-      throw new NotFoundException('Transaction not found');
+      return;
     }
 
     if (existing.payoutStatus === 'PAID') {
@@ -80,5 +101,39 @@ export class WebhooksService {
         .set({ payoutStatus: 'PAID' })
         .where(eq(transactions.paymentIntentId, payload.external_id));
     });
+  }
+
+  async handleXenditAccountEvent(
+    payload: XenditAccountWebhookPayload,
+    token: string,
+  ): Promise<void> {
+    if (!this.paymentProvider.verifyWebhookToken(token)) {
+      throw new UnauthorizedException('Invalid webhook token');
+    }
+
+    const validStatuses = new Set([
+      'INVITED',
+      'REGISTERED',
+      'AWAITING_DOCS',
+      'PENDING_VERIFICATION',
+      'LIVE',
+      'SUSPENDED',
+    ]);
+
+    if (!validStatuses.has(payload.status)) {
+      this.logger.log(
+        `Ignoring unknown account status ${payload.status} for sub-account ${payload.id}`,
+      );
+      return;
+    }
+
+    await this.client
+      .update(users)
+      .set({ paymentAccountStatus: payload.status })
+      .where(eq(users.paymentAccountId, payload.id));
+
+    this.logger.log(
+      `Sub-account ${payload.id} status updated to ${payload.status}`,
+    );
   }
 }

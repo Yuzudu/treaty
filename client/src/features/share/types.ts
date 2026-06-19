@@ -3,6 +3,9 @@ export interface ShareLink {
   token: string
   projectId: string
   expiresAt: string
+  projectStatus: string
+  priceCents: number | null
+  currency: string
 }
 
 export type ShareTokenResult =

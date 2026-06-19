@@ -40,13 +40,21 @@ describe('McpController', () => {
     const req = {} as any;
     const res = {} as any;
     await controller.get(req, res);
-    expect(mockMcpService.handleRequest).toHaveBeenCalledWith(req, res, undefined);
+    expect(mockMcpService.handleRequest).toHaveBeenCalledWith(
+      req,
+      res,
+      undefined,
+    );
   });
 
   it('delete() delegates to McpService.handleRequest', async () => {
     const req = {} as any;
     const res = {} as any;
     await controller.delete(req, res);
-    expect(mockMcpService.handleRequest).toHaveBeenCalledWith(req, res, undefined);
+    expect(mockMcpService.handleRequest).toHaveBeenCalledWith(
+      req,
+      res,
+      undefined,
+    );
   });
 });

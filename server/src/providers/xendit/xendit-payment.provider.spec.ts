@@ -94,6 +94,7 @@ describe('XenditPaymentProvider', () => {
       amountCents: 50000,
       currency: 'PHP',
       platformFeeCents: 500,
+      shareToken: 'tok_abc',
     });
 
     expect(result).toEqual({
@@ -116,9 +117,9 @@ describe('XenditPaymentProvider', () => {
       subAccountId: 'acc_123',
       platformFeeAmount: 500,
       successRedirectUrl:
-        'https://app.example.com/payment-result?status=success',
+        'https://app.example.com/payment-result?status=success&token=tok_abc',
       failureRedirectUrl:
-        'https://app.example.com/payment-result?status=failure',
+        'https://app.example.com/payment-result?status=failure&token=tok_abc',
     });
   });
 

@@ -3,10 +3,9 @@ import { paymentApi } from "../api/payment.api"
 
 export function useCheckout() {
   return useMutation({
-    mutationFn: (projectId: string) => paymentApi.createCheckout(projectId),
+    mutationFn: (token: string) => paymentApi.createCheckout(token),
     onSuccess: (session) => {
-      // Redirect to session.url (Stripe hosted checkout)
-      console.log("Checkout session created:", session.sessionId)
+      window.location.href = session.url
     },
   })
 }

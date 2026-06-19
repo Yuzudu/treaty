@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectStatus, ALLOWED_TRANSITIONS } from '@treaty/shared'
 import { useProject } from '../hooks/useProject'
@@ -38,9 +39,10 @@ function ProjectDetailSkeleton() {
 export function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading } = useProject(id)
   const { data: assets, isLoading: assetsLoading } = useProjectAssets(id)
-  const { mutate: transition, isPending, variables: pendingTo } = useTransition(id)
+  const { mutate: transition, isPending, variables: pendingVars } = useTransition(id)
   const isProtected = useScreenshotProtection()
   const [selectedAsset, setSelectedAsset] = useState<any | null>(null)
+  const [priceInput, setPriceInput] = useState('')
 
   if (isLoading) return <ProjectDetailSkeleton />
 
@@ -51,10 +53,20 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
   const status = project.status as ProjectStatus
   const nextStatuses = ALLOWED_TRANSITIONS[status] ?? []
 
-  function handleTransition(to: ProjectStatus) {
-    transition(to, {
-      onError: (err) => toast.error((err as Error).message),
-    })
+  function handleTransition(to: ProjectStatus, priceCents?: number) {
+    transition(
+      { to, priceCents, currency: priceCents !== undefined ? 'PHP' : undefined },
+      { onError: (err) => toast.error((err as Error).message) },
+    )
+  }
+
+  function handleRequestPayment() {
+    const pesos = Number(priceInput)
+    if (!priceInput || !Number.isFinite(pesos) || pesos <= 0) {
+      toast.error('Enter a valid price')
+      return
+    }
+    handleTransition(ProjectStatus.AWAITING_PAYMENT, Math.round(pesos * 100))
   }
 
   return (
@@ -67,20 +79,40 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
       {nextStatuses.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">Move to</p>
-          <div className="flex flex-wrap gap-2">
-            {nextStatuses.map((next) => (
-              <Button
-                key={next}
-                variant="outline"
-                disabled={isPending}
-                onClick={() => handleTransition(next)}
-              >
-                {isPending && pendingTo === next && (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                )}
-                <StatusBadge status={next} />
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {nextStatuses.map((next) =>
+              next === ProjectStatus.AWAITING_PAYMENT ? (
+                <div key={next} className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    placeholder="Price (PHP)"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    className="w-36"
+                  />
+                  <Button variant="outline" disabled={isPending} onClick={handleRequestPayment}>
+                    {isPending && pendingVars?.to === next && (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    )}
+                    Request payment
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  key={next}
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => handleTransition(next)}
+                >
+                  {isPending && pendingVars?.to === next && (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  )}
+                  <StatusBadge status={next} />
+                </Button>
+              ),
+            )}
           </div>
         </div>
       )}

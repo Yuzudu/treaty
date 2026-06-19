@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { validateShareToken } from "@/features/share"
 import { SharePreview } from "@/features/share"
 import { ExpiredLink } from "@/features/share"
+import { PaymentButton } from "@/features/payment"
 
 export const dynamic = "force-dynamic"
 
@@ -36,7 +37,10 @@ export default async function SharePage({ params }: SharePageProps) {
       <div className="rounded-xl border bg-background p-6">
         <SharePreview shareLink={result.shareLink} />
       </div>
-      {/* TODO(phase-1): add annotation tools, payment button */}
+      {result.shareLink.projectStatus === "AWAITING_PAYMENT" && (
+        <PaymentButton token={result.shareLink.token} />
+      )}
+      {/* TODO(phase-1): add annotation tools */}
     </div>
   )
 }

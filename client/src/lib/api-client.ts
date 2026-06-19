@@ -34,7 +34,13 @@ export async function apiFetch<T>(
   })
 
   if (!res.ok) {
-    throw new ApiError(res.status, `API error ${res.status} on ${path}`)
+    const body = await res.text()
+    let message = `API error ${res.status} on ${path}`
+    try {
+      const parsed = JSON.parse(body) as { message?: string }
+      if (typeof parsed.message === 'string') message = parsed.message
+    } catch {}
+    throw new ApiError(res.status, message)
   }
 
   return res.json() as Promise<T>

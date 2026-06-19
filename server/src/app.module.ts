@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AssetsModule } from './modules/assets/assets.module';
@@ -14,6 +15,7 @@ import { PaymentModule } from './providers/payment.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 5 }] }),
     ConfigModule,
     DbModule,
     PaymentModule,

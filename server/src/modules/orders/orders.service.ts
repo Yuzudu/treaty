@@ -47,24 +47,26 @@ export class OrdersService {
     });
     await this.client
       .update(users)
-      .set({ paymentAccountId: subAccountId })
+      .set({ paymentAccountId: subAccountId, paymentAccountStatus: 'INVITED' })
       .where(eq(users.id, userId));
     return { subAccountId };
   }
 
   async getOnboardingStatus(
     userId: string,
-  ): Promise<{ onboarded: boolean; active: boolean }> {
+  ): Promise<{ onboarded: boolean; active: boolean; status: string | null }> {
     const [user] = await this.client
       .select()
       .from(users)
       .where(eq(users.id, userId));
-    if (!user?.paymentAccountId) return { onboarded: false, active: false };
+    if (!user?.paymentAccountId)
+      return { onboarded: false, active: false, status: null };
 
-    const status = await this.paymentProvider.getSubAccountStatus(
-      user.paymentAccountId,
-    );
-    return { onboarded: true, active: status.active };
+    return {
+      onboarded: true,
+      active: user.paymentAccountStatus === 'LIVE',
+      status: user.paymentAccountStatus,
+    };
   }
 
   async createCheckoutFromShareToken(token: string): Promise<{ url: string }> {
@@ -78,6 +80,9 @@ export class OrdersService {
     if ((project.status as ProjectStatus) !== ProjectStatus.AWAITING_PAYMENT) {
       throw new BadRequestException('Project is not awaiting payment');
     }
+    if (!project.priceCents) {
+      throw new BadRequestException('Project has no price set');
+    }
 
     const [creator] = await this.client
       .select()
@@ -88,17 +93,13 @@ export class OrdersService {
         'Creator has not completed payment onboarding',
       );
     }
-
-    const subAccountStatus = await this.paymentProvider.getSubAccountStatus(
-      creator.paymentAccountId,
-    );
-    if (!subAccountStatus.active) {
+    if (creator.paymentAccountStatus !== 'LIVE') {
       throw new ConflictException('Creator payment account is not active');
     }
 
     const parsedFeePercent = Number(process.env.PLATFORM_FEE_PERCENT);
     const feePercent = Number.isFinite(parsedFeePercent) ? parsedFeePercent : 1;
-    const amountCents = project.priceCents!;
+    const amountCents = project.priceCents;
     const platformFeeCents = Math.round((amountCents * feePercent) / 100);
 
     const session = await this.paymentProvider.createCheckoutSession({
@@ -107,15 +108,26 @@ export class OrdersService {
       amountCents,
       currency: project.currency ?? 'PHP',
       platformFeeCents,
+      shareToken: token,
     });
 
-    await this.client.insert(transactions).values({
-      projectId: project.id,
-      paymentIntentId: session.externalId,
-      amountTotal: (amountCents / 100).toFixed(2),
-      platformFee: (platformFeeCents / 100).toFixed(2),
-      payoutStatus: 'PENDING',
-    });
+    try {
+      await this.client.insert(transactions).values({
+        projectId: project.id,
+        paymentIntentId: session.externalId,
+        amountTotal: (amountCents / 100).toFixed(2),
+        platformFee: (platformFeeCents / 100).toFixed(2),
+        payoutStatus: 'PENDING',
+      });
+    } catch (err) {
+      // Unique constraint on (projectId) WHERE payoutStatus = 'PENDING'
+      if ((err as { code?: string }).code === '23505') {
+        throw new ConflictException(
+          'Payment already initiated for this project',
+        );
+      }
+      throw err;
+    }
 
     return { url: session.url };
   }

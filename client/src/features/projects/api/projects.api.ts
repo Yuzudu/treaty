@@ -19,10 +19,10 @@ export function createProjectsApi(token: string) {
         ...auth,
       }),
 
-    transition: (id: string, to: ProjectStatus) =>
+    transition: (id: string, to: ProjectStatus, priceCents?: number, currency?: string) =>
       apiFetch<Project>(`/projects/${id}/transition`, {
         method: 'PATCH',
-        body: JSON.stringify({ to }),
+        body: JSON.stringify({ to, priceCents, currency }),
         ...auth,
       }),
 
