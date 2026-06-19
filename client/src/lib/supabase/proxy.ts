@@ -10,23 +10,20 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll()
       },
-      setAll(cookiesToSet, headers) {
+      setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
         supabaseResponse = NextResponse.next({ request })
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options),
         )
-        Object.entries(headers).forEach(([key, value]) =>
-          supabaseResponse.headers.set(key, value),
-        )
       },
     },
   })
 
-  // IMPORTANT: Do not put any code between createServerClient and getClaims().
+  // IMPORTANT: Do not put any code between createServerClient and getUser().
   // A simple mistake here can cause random logouts.
-  const { data } = await supabase.auth.getClaims()
-  const user = data?.claims
+  const { data: { user } } = await supabase.auth.getUser()
 
   return { supabaseResponse, user }
 }
+

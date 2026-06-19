@@ -7,7 +7,7 @@ export const metadata = {
 export default function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; next?: string }>
 }) {
   return (
     <div className="space-y-6">
