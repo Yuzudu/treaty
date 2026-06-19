@@ -2,16 +2,15 @@
 
 import { use, useActionState, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { signInWithGoogle, signInWithMagicLink } from '../api/auth.api'
+import { signInWithMagicLink } from '../api/auth.api'
 import type { AuthResult } from '../types'
 
 const initialState: AuthResult = { error: null }
 
-export function SignInForm({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error: callbackError } = use(searchParams)
+export function SignInForm({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
+  const { error: callbackError, next } = use(searchParams)
   const [magicState, magicAction, magicPending] = useActionState(signInWithMagicLink, initialState)
   const [cooldown, setCooldown] = useState(0)
-  const [googlePending, setGooglePending] = useState(false)
   const sent = !magicState.error && !magicPending && magicState !== initialState
 
   useEffect(() => {
@@ -34,6 +33,7 @@ export function SignInForm({ searchParams }: { searchParams: Promise<{ error?: s
         </p>
       )}
       <form action={magicAction} className="space-y-3">
+        <input type="hidden" name="next" value={next ?? '/studio'} />
         <div>
           <label htmlFor="email" className="block text-sm font-medium">
             Email
@@ -61,25 +61,6 @@ export function SignInForm({ searchParams }: { searchParams: Promise<{ error?: s
             : sent
             ? 'Resend magic link'
             : 'Send magic link'}
-        </Button>
-      </form>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">or</span>
-        </div>
-      </div>
-
-      <form action={async () => {
-        setGooglePending(true)
-        const result = await signInWithGoogle()
-        if (result?.error) setGooglePending(false)
-      }}>
-        <Button type="submit" variant="outline" className="w-full" disabled={googlePending}>
-          {googlePending ? 'Redirecting…' : 'Continue with Google'}
         </Button>
       </form>
     </div>

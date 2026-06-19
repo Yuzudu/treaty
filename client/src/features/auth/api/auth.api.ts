@@ -4,30 +4,19 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { AuthResult } from '../types'
 
-export async function signInWithGoogle(): Promise<AuthResult> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/callback`,
-    },
-  })
-
-  if (error || !data.url) return { error: error?.message ?? 'Google sign-in failed' }
-  redirect(data.url)
-}
-
 export async function signInWithMagicLink(
   _prevState: AuthResult,
   formData: FormData,
 ): Promise<AuthResult> {
   const supabase = await createSupabaseServerClient()
   const email = formData.get('email') as string
+  const next = (formData.get('next') as string | null) ?? '/studio'
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/callback`,
+      emailRedirectTo: `${siteUrl}/callback?next=${encodeURIComponent(next)}`,
     },
   })
 

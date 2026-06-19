@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation"
-import { headers } from "next/headers"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { UserMenu } from "@/features/auth"
 import Link from "next/link"
@@ -11,9 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    const headersList = await headers()
-    const path = headersList.get("x-invoke-path") ?? "/studio"
-    redirect(`/sign-in?redirectTo=${encodeURIComponent(path)}`)
+    redirect('/sign-in')
   }
 
   return (
