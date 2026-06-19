@@ -1,3 +1,5 @@
+import { ConnectPaymentButton } from "@/features/payment"
+
 export const dynamic = "force-dynamic"
 
 export const metadata = {
@@ -13,8 +15,9 @@ export default function SettingsPage() {
           Manage your account preferences.
         </p>
       </div>
-      <div className="rounded-lg border p-6">
-        <p className="text-sm text-muted-foreground">Account settings coming soon.</p>
+      <div className="rounded-lg border p-6 space-y-3">
+        <h2 className="text-sm font-medium">Payments</h2>
+        <ConnectPaymentButton />
       </div>
     </div>
   )

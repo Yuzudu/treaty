@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { AssetsService, UploadedFile as UploadedFileDto } from './assets.service';
+import {
+  AssetsService,
+  UploadedFile as UploadedFileDto,
+} from './assets.service';
 import { SupabaseAuthGuard } from '../../guards/supabase-auth.guard';
 
 interface AuthRequest extends Request {

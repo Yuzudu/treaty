@@ -41,12 +41,18 @@ describe('SupabaseAuthGuard', () => {
 
   describe('JWT verification — HS256 (legacy)', () => {
     beforeEach(() => {
-      mockDecode.mockReturnValue({ header: { alg: 'HS256' }, payload: {}, signature: '' });
+      mockDecode.mockReturnValue({
+        header: { alg: 'HS256' },
+        payload: {},
+        signature: '',
+      });
     });
 
     it('sets userId from verified token sub claim', async () => {
       mockVerify.mockReturnValueOnce({ sub: 'user-abc-123' });
-      const request: any = { headers: { authorization: 'Bearer valid.jwt.token' } };
+      const request: any = {
+        headers: { authorization: 'Bearer valid.jwt.token' },
+      };
       const ctx = {
         switchToHttp: () => ({ getRequest: () => request }),
       } as unknown as ExecutionContext;
@@ -55,32 +61,50 @@ describe('SupabaseAuthGuard', () => {
 
       expect(result).toBe(true);
       expect(request.userId).toBe('user-abc-123');
-      expect(mockVerify).toHaveBeenCalledWith('valid.jwt.token', 'test-secret', { algorithms: ['HS256'] });
+      expect(mockVerify).toHaveBeenCalledWith(
+        'valid.jwt.token',
+        'test-secret',
+        { algorithms: ['HS256'] },
+      );
     });
 
     it('throws UnauthorizedException when token has no sub claim', async () => {
       mockVerify.mockReturnValueOnce({ email: 'user@example.com' });
       const ctx = makeContext({ authorization: 'Bearer no.sub.token' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('throws UnauthorizedException when token is invalid', async () => {
-      mockVerify.mockImplementationOnce(() => { throw new Error('invalid signature') });
+      mockVerify.mockImplementationOnce(() => {
+        throw new Error('invalid signature');
+      });
       const ctx = makeContext({ authorization: 'Bearer bad.token' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
   describe('JWT verification — ES256 (current)', () => {
     beforeEach(() => {
-      mockDecode.mockReturnValue({ header: { alg: 'ES256' }, payload: {}, signature: '' });
+      mockDecode.mockReturnValue({
+        header: { alg: 'ES256' },
+        payload: {},
+        signature: '',
+      });
     });
 
     it('sets userId from ES256 verified token sub claim', async () => {
-      mockJwtVerify.mockResolvedValueOnce({ payload: { sub: 'user-es256-123' } });
-      const request: any = { headers: { authorization: 'Bearer valid.es256.token' } };
+      mockJwtVerify.mockResolvedValueOnce({
+        payload: { sub: 'user-es256-123' },
+      });
+      const request: any = {
+        headers: { authorization: 'Bearer valid.es256.token' },
+      };
       const ctx = {
         switchToHttp: () => ({ getRequest: () => request }),
       } as unknown as ExecutionContext;
@@ -95,19 +119,25 @@ describe('SupabaseAuthGuard', () => {
       mockJwtVerify.mockRejectedValueOnce(new Error('invalid signature'));
       const ctx = makeContext({ authorization: 'Bearer bad.es256.token' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
   describe('header validation', () => {
     it('throws UnauthorizedException when authorization header is missing', async () => {
       const ctx = makeContext({});
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('throws UnauthorizedException when authorization header has wrong format', async () => {
       const ctx = makeContext({ authorization: 'Basic dXNlcjpwYXNz' });
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -128,11 +158,20 @@ describe('SupabaseAuthGuard', () => {
 
     it('ignores x-user-id bypass in production', async () => {
       process.env.NODE_ENV = 'production';
-      mockDecode.mockReturnValue({ header: { alg: 'ES256' }, payload: {}, signature: '' });
+      mockDecode.mockReturnValue({
+        header: { alg: 'ES256' },
+        payload: {},
+        signature: '',
+      });
       mockJwtVerify.mockRejectedValueOnce(new Error('no token'));
-      const ctx = makeContext({ 'x-user-id': 'attacker-id', authorization: 'Bearer bad.token' });
+      const ctx = makeContext({
+        'x-user-id': 'attacker-id',
+        authorization: 'Bearer bad.token',
+      });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(mockVerify).not.toHaveBeenCalled();
     });
   });

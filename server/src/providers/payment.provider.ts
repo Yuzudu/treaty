@@ -12,6 +12,7 @@ export interface PaymentProvider {
     amountCents: number;
     currency: string;
     platformFeeCents: number;
+    shareToken: string;
   }): Promise<{ url: string; externalId: string }>;
 
   verifyWebhookToken(token: string): boolean;

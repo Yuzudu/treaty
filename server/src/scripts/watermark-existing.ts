@@ -32,14 +32,19 @@ async function bootstrap() {
       console.log(`File Path: ${asset.fileUrl}`);
 
       if (!asset.fileUrl) {
-        console.warn(`Asset ${asset.id} has no fileUrl (clean path). Skipping.`);
+        console.warn(
+          `Asset ${asset.id} has no fileUrl (clean path). Skipping.`,
+        );
         continue;
       }
 
       try {
         // 1. Download clean version from private-assets bucket
         console.log(`Downloading clean version from private-assets...`);
-        const fileBuffer = await storageService.downloadFile('private-assets', asset.fileUrl);
+        const fileBuffer = await storageService.downloadFile(
+          'private-assets',
+          asset.fileUrl,
+        );
         console.log(`Downloaded ${fileBuffer.length} bytes.`);
 
         // 2. Generate watermark
@@ -50,9 +55,14 @@ async function bootstrap() {
         if (asset.assetType === 'image') {
           watermarkedBuffer = await watermarkService.watermarkImage(fileBuffer);
         } else {
-          watermarkedBuffer = await watermarkService.watermarkVideo(fileBuffer, fileExtension);
+          watermarkedBuffer = await watermarkService.watermarkVideo(
+            fileBuffer,
+            fileExtension,
+          );
         }
-        console.log(`Watermark generated. Size: ${watermarkedBuffer.length} bytes.`);
+        console.log(
+          `Watermark generated. Size: ${watermarkedBuffer.length} bytes.`,
+        );
 
         // 3. Determine mimetype
         const ext = fileExtension.toLowerCase();
@@ -73,7 +83,10 @@ async function bootstrap() {
         );
 
         // 5. Get public URL and update database
-        const publicUrl = storageService.getPublicUrl('public-previews', publicPath);
+        const publicUrl = storageService.getPublicUrl(
+          'public-previews',
+          publicPath,
+        );
         console.log(`Preview URL: ${publicUrl}`);
 
         await db
@@ -81,9 +94,14 @@ async function bootstrap() {
           .set({ watermarkedUrl: publicUrl })
           .where(eq(assets.id, asset.id));
 
-        console.log(`Asset ${asset.id} successfully watermarked and database updated.`);
+        console.log(
+          `Asset ${asset.id} successfully watermarked and database updated.`,
+        );
       } catch (err) {
-        console.error(`Error processing asset ${asset.id}:`, (err as Error).message);
+        console.error(
+          `Error processing asset ${asset.id}:`,
+          (err as Error).message,
+        );
       }
     }
 

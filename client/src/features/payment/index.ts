@@ -1,4 +1,6 @@
 export { PaymentButton } from "./components/PaymentButton"
+export { ConnectPaymentButton } from "./components/ConnectPaymentButton"
 export { useCheckout } from "./hooks/useCheckout"
+export { useOnboard, useOnboardingStatus } from "./hooks/useOnboarding"
 export { paymentApi } from "./api/payment.api"
-export type { CheckoutSession } from "./types"
+export type { CheckoutSession, OnboardingStatus } from "./types"

@@ -8,7 +8,9 @@ export class SupabaseStorageService {
   private supabase: SupabaseClient;
 
   constructor(private readonly configService: ConfigService) {
-    const supabaseUrl = this.configService.get<string>('NEXT_PUBLIC_SUPABASE_URL');
+    const supabaseUrl = this.configService.get<string>(
+      'NEXT_PUBLIC_SUPABASE_URL',
+    );
     const supabaseKey = this.configService.get<string>('SUPABASE_SECRET_KEY');
 
     if (!supabaseUrl || !supabaseKey) {
@@ -47,7 +49,9 @@ export class SupabaseStorageService {
       });
 
     if (error) {
-      this.logger.error(`Failed to upload file to bucket ${bucketName}: ${error.message}`);
+      this.logger.error(
+        `Failed to upload file to bucket ${bucketName}: ${error.message}`,
+      );
       throw new Error(`Upload failed: ${error.message}`);
     }
 
@@ -67,10 +71,14 @@ export class SupabaseStorageService {
    * Downloads a file from a specific bucket and returns it as a Buffer
    */
   async downloadFile(bucketName: string, path: string): Promise<Buffer> {
-    const { data, error } = await this.supabase.storage.from(bucketName).download(path);
+    const { data, error } = await this.supabase.storage
+      .from(bucketName)
+      .download(path);
 
     if (error) {
-      this.logger.error(`Failed to download file from bucket ${bucketName}/${path}: ${error.message}`);
+      this.logger.error(
+        `Failed to download file from bucket ${bucketName}/${path}: ${error.message}`,
+      );
       throw new Error(`Download failed: ${error.message}`);
     }
 

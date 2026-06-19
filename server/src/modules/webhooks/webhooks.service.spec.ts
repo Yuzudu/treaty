@@ -1,4 +1,4 @@
-import { UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
 import { ProjectStatus } from '@treaty/shared';
 import type { DrizzleDB } from '../db/db.module';
@@ -23,14 +23,23 @@ interface UpdateChain {
 
 describe('WebhooksService', () => {
   let service: WebhooksService;
-  let mockDb: { select: jest.Mock; transaction: jest.Mock };
+  let mockDb: { select: jest.Mock; update: jest.Mock; transaction: jest.Mock };
   let mockPaymentProvider: { verifyWebhookToken: jest.Mock<boolean, [string]> };
   let txUpdateCalls: unknown[];
+
+  function makeUpdateChain() {
+    const chain: { set: jest.Mock; where: jest.Mock } = {
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    };
+    return chain;
+  }
 
   beforeEach(() => {
     txUpdateCalls = [];
     mockDb = {
       select: jest.fn(),
+      update: jest.fn(() => makeUpdateChain()),
       transaction: jest.fn(
         async (cb: (tx: { update: jest.Mock }) => Promise<void>) => {
           const tx = {
@@ -69,7 +78,7 @@ describe('WebhooksService', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('ignores events that are not PAID', async () => {
+  it('EXPIRED event clears the PENDING transaction row', async () => {
     mockPaymentProvider.verifyWebhookToken.mockReturnValue(true);
 
     await service.handleXenditEvent(
@@ -77,10 +86,24 @@ describe('WebhooksService', () => {
       'tok',
     );
 
+    expect(mockDb.update).toHaveBeenCalled();
     expect(mockDb.select).not.toHaveBeenCalled();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 
-  it('throws NotFoundException when no transaction matches the external id', async () => {
+  it('ignores events that are neither PAID nor EXPIRED', async () => {
+    mockPaymentProvider.verifyWebhookToken.mockReturnValue(true);
+
+    await service.handleXenditEvent(
+      { external_id: 'inv_1', status: 'PENDING' },
+      'tok',
+    );
+
+    expect(mockDb.select).not.toHaveBeenCalled();
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('resolves silently when no transaction matches the external id', async () => {
     mockPaymentProvider.verifyWebhookToken.mockReturnValue(true);
     mockDb.select.mockReturnValue(makeSelectChain([]));
 
@@ -89,7 +112,7 @@ describe('WebhooksService', () => {
         { external_id: 'inv_unknown', status: 'PAID' },
         'tok',
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).resolves.toBeUndefined();
   });
 
   it('no-ops when the transaction is already PAID (idempotent retry)', async () => {

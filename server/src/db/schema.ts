@@ -14,6 +14,7 @@ export const users = pgTable('users', {
   email: varchar('email').notNull().unique(),
   name: varchar('name'),
   paymentAccountId: varchar('paymentaccountid'),
+  paymentAccountStatus: varchar('paymentaccountstatus'),
 });
 
 export const projects = pgTable('projects', {
@@ -49,6 +50,18 @@ export const assets = pgTable('assets', {
   expiresAt: timestamp('expiresat', { withTimezone: true }),
 });
 
+export const sharelinks = pgTable('sharelinks', {
+  id: uuid('linkid').primaryKey().defaultRandom(),
+  projectId: uuid('projectid')
+    .notNull()
+    .references(() => projects.id),
+  token: varchar('token').notNull().unique(),
+  expiresAt: timestamp('expiresat', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const collaborations = pgTable('collaborations', {
   id: uuid('collabid').primaryKey().defaultRandom(),
   assetId: uuid('assetid').references(() => assets.id),
@@ -69,4 +82,3 @@ export const videoannotation = pgTable('videoannotation', {
   timestampSeconds: numeric('timestampseconds'),
   duration: numeric('duration'),
 });
-

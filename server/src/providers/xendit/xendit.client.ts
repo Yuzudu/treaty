@@ -76,11 +76,11 @@ export class XenditClient {
       },
       body: JSON.stringify({
         external_id: params.externalId,
-        amount: params.amount,
+        amount: params.amount / 100,
         currency: params.currency,
         success_redirect_url: params.successRedirectUrl,
         failure_redirect_url: params.failureRedirectUrl,
-        fees: [{ type: 'PLATFORM_FEE', value: params.platformFeeAmount }],
+        fees: [{ type: 'PLATFORM_FEE', value: params.platformFeeAmount / 100 }],
       }),
     });
     if (!res.ok) {

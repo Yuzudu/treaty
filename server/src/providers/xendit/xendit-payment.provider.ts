@@ -41,6 +41,7 @@ export class XenditPaymentProvider implements PaymentProvider {
     amountCents: number;
     currency: string;
     platformFeeCents: number;
+    shareToken: string;
   }): Promise<{ url: string; externalId: string }> {
     if (!process.env.WEB_URL) {
       throw new Error('WEB_URL environment variable is not set');
@@ -52,8 +53,8 @@ export class XenditPaymentProvider implements PaymentProvider {
       currency: params.currency,
       subAccountId: params.subAccountId,
       platformFeeAmount: params.platformFeeCents,
-      successRedirectUrl: `${webUrl}/payment-result?status=success`,
-      failureRedirectUrl: `${webUrl}/payment-result?status=failure`,
+      successRedirectUrl: `${webUrl}/payment-result?status=success&token=${params.shareToken}`,
+      failureRedirectUrl: `${webUrl}/payment-result?status=failure&token=${params.shareToken}`,
     });
     return { url: invoice.invoice_url, externalId: invoice.id };
   }

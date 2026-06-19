@@ -17,4 +17,10 @@ export class ShareLinksController {
     // Public route — no auth guard
     return this.shareLinksService.findByToken(token);
   }
+
+  @Get(':token/files')
+  getFiles(@Param('token') token: string) {
+    // Public — gated by project status PAID inside service
+    return this.shareLinksService.getFilesForPaidProject(token);
+  }
 }

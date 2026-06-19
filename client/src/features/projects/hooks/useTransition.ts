@@ -9,7 +9,8 @@ export function useTransition(projectId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (to: ProjectStatus) => createProjectsApi(auth!.token).transition(projectId, to),
+    mutationFn: ({ to, priceCents, currency }: { to: ProjectStatus; priceCents?: number; currency?: string }) =>
+      createProjectsApi(auth!.token).transition(projectId, to, priceCents, currency),
     onSuccess: (updated) => {
       queryClient.setQueryData(['projects', auth?.userId, projectId], updated)
       queryClient.invalidateQueries({ queryKey: ['projects', auth?.userId] })

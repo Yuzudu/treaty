@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { Request } from 'express';
 import { OrdersService } from './orders.service';
 import { SupabaseAuthGuard } from '../../guards/supabase-auth.guard';
@@ -32,6 +33,8 @@ export class OrdersController {
   }
 
   @Post('share/:token/checkout')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   createCheckout(@Param('token') token: string) {
     return this.ordersService.createCheckoutFromShareToken(token);
   }
