@@ -43,4 +43,21 @@ export class AssetsController {
   ) {
     return this.assetsService.upload(req.userId, projectId, file);
   }
+
+  @Get('annotations')
+  getAllAnnotations(
+    @Req() req: AuthRequest,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+  ) {
+    return this.assetsService.getAllAnnotations(req.userId, projectId);
+  }
+
+  @Get(':assetId/annotations')
+  getAnnotations(
+    @Req() req: AuthRequest,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('assetId', ParseUUIDPipe) assetId: string,
+  ) {
+    return this.assetsService.getAnnotations(req.userId, projectId, assetId);
+  }
 }
