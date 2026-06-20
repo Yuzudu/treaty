@@ -66,6 +66,7 @@ export const collaborations = pgTable('collaborations', {
   id: uuid('collabid').primaryKey().defaultRandom(),
   assetId: uuid('assetid').references(() => assets.id),
   commentText: text('commenttext'),
+  collaboratorName: varchar('collaboratorname', { length: 255 }),
 });
 
 export const annotationcoordinates = pgTable('annotationcoordinates', {

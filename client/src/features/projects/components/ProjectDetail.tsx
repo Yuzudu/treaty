@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Share2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +9,7 @@ import { ProjectStatus, ALLOWED_TRANSITIONS } from '@treaty/shared'
 import { useProject } from '../hooks/useProject'
 import { useTransition } from '../hooks/useTransition'
 import { useProjectAssets } from '../hooks/useProjectAssets'
+import { useShareLink } from '../hooks/useShareLink'
 import { StatusBadge } from './StatusBadge'
 import { useScreenshotProtection } from '@/hooks/useScreenshotProtection'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -40,9 +41,11 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading } = useProject(id)
   const { data: assets, isLoading: assetsLoading } = useProjectAssets(id)
   const { mutate: transition, isPending, variables: pendingVars } = useTransition(id)
+  const { mutate: generateShareLink, isPending: isSharing } = useShareLink()
   const isProtected = useScreenshotProtection()
   const [selectedAsset, setSelectedAsset] = useState<any | null>(null)
   const [priceInput, setPriceInput] = useState('')
+  const [copied, setCopied] = useState(false)
 
   if (isLoading) return <ProjectDetailSkeleton />
 
@@ -69,11 +72,43 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
     handleTransition(ProjectStatus.AWAITING_PAYMENT, Math.round(pesos * 100))
   }
 
+  function handleShare() {
+    if (!project) return
+    generateShareLink(project.id, {
+      onSuccess: (data) => {
+        const shareUrl = `${window.location.origin}/share/${data.token}`
+        navigator.clipboard.writeText(shareUrl)
+        toast.success('Share link copied to clipboard!')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      },
+      onError: (err) => {
+        toast.error((err as Error).message)
+      },
+    })
+  }
+
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">{project.title}</h1>
-        <StatusBadge status={status} />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/40 pb-5">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
+          <StatusBadge status={status} />
+        </div>
+        <Button
+          onClick={handleShare}
+          disabled={isSharing}
+          className="flex items-center gap-2 self-start sm:self-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow"
+        >
+          {isSharing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : copied ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Share2 className="h-4 w-4" />
+          )}
+          {copied ? 'Link Copied!' : 'Share Preview'}
+        </Button>
       </div>
 
       {nextStatuses.length > 0 && (
