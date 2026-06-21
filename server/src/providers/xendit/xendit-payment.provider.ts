@@ -37,26 +37,31 @@ export class XenditPaymentProvider implements PaymentProvider {
 
   async createCheckoutSession(params: {
     projectId: string;
+    token: string;
     subAccountId: string;
     amountCents: number;
     currency: string;
     platformFeeCents: number;
-    shareToken: string;
   }): Promise<{ url: string; externalId: string }> {
     if (!process.env.WEB_URL) {
       throw new Error('WEB_URL environment variable is not set');
     }
     const webUrl = process.env.WEB_URL;
+    const shareBase = `${webUrl}/share/${params.token}`;
     const invoice = await this.getClient().createInvoice({
       externalId: `order_${params.projectId}_${Date.now()}`,
       amount: params.amountCents,
       currency: params.currency,
       subAccountId: params.subAccountId,
       platformFeeAmount: params.platformFeeCents,
-      successRedirectUrl: `${webUrl}/payment-result?status=success&token=${params.shareToken}`,
-      failureRedirectUrl: `${webUrl}/payment-result?status=failure&token=${params.shareToken}`,
+      successRedirectUrl: `${shareBase}?paying=1`,
+      failureRedirectUrl: `${shareBase}?failed=1`,
     });
     return { url: invoice.invoice_url, externalId: invoice.id };
+  }
+
+  async expireInvoice(invoiceId: string): Promise<void> {
+    return this.getClient().expireInvoice(invoiceId);
   }
 
   verifyWebhookToken(token: string): boolean {

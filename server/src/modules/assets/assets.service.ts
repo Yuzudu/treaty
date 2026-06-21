@@ -2,10 +2,12 @@ import {
   Injectable,
   Inject,
   BadRequestException,
+  NotFoundException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import { ProjectStatus } from '@treaty/shared';
 import { randomUUID } from 'crypto';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
 import { assets, collaborations, annotationcoordinates, videoannotation } from '../../db/schema';
@@ -124,6 +126,32 @@ export class AssetsService {
     } catch (error) {
       throw new InternalServerErrorException(
         `Failed to complete upload workflow: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  async delete(userId: string, projectId: string, assetId: string): Promise<void> {
+    const project = await this.projectsService.findOne(userId, projectId);
+
+    if (project.status !== ProjectStatus.DRAFT) {
+      throw new BadRequestException('Assets can only be deleted while project is in DRAFT');
+    }
+
+    const [asset] = await this.client
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
+
+    if (!asset) throw new NotFoundException('Asset not found');
+
+    await this.client.delete(assets).where(eq(assets.id, assetId));
+
+    if (asset.fileUrl) {
+      void this.storageService.deleteFile('private-assets', asset.fileUrl).catch(
+        (err: Error) => this.logger.warn(`Failed to delete private asset: ${err.message}`),
+      );
+      void this.storageService.deleteFile('public-previews', asset.fileUrl).catch(
+        (err: Error) => this.logger.warn(`Failed to delete preview: ${err.message}`),
       );
     }
   }

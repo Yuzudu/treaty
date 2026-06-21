@@ -19,6 +19,10 @@ export function useCreateProject() {
         id: `optimistic-${Date.now()}`,
         title,
         status: ProjectStatus.DRAFT,
+        priceCents: null,
+        currency: null,
+        shareToken: null,
+        thumbnailUrl: null,
         createdAt: new Date().toISOString(),
       }
       queryClient.setQueryData<Project[]>(listKey, (old) => [optimistic, ...(old ?? [])])

@@ -1,5 +1,6 @@
 export { SharePreview } from "./components/SharePreview"
 export { ExpiredLink } from "./components/ExpiredLink"
+export { RevokedLink } from "./components/RevokedLink"
 export { useShareLink } from "./hooks/useShareLink"
 export { useShareProject } from "./hooks/useShareProject"
 export { useShareAnnotations } from "./hooks/useShareAnnotations"

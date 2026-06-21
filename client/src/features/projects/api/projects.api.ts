@@ -1,6 +1,6 @@
 import { apiFetch } from '@/lib/api-client'
-import type { Project } from '../types'
 import type { ProjectStatus } from '@treaty/shared'
+import type { Project, Asset } from '../types'
 
 export function createProjectsApi(token: string) {
   const auth = { accessToken: token }
@@ -22,14 +22,14 @@ export function createProjectsApi(token: string) {
     transition: (id: string, to: ProjectStatus, priceCents?: number, currency?: string) =>
       apiFetch<Project>(`/projects/${id}/transition`, {
         method: 'PATCH',
-        body: JSON.stringify({ to, priceCents, currency }),
+        body: JSON.stringify({ to, ...(priceCents != null && { priceCents, currency: currency ?? 'PHP' }) }),
         ...auth,
       }),
 
     uploadAsset: (id: string, file: File) => {
       const formData = new FormData()
       formData.append('file', file)
-      return apiFetch<any>(`/projects/${id}/assets`, {
+      return apiFetch<Asset>(`/projects/${id}/assets`, {
         method: 'POST',
         body: formData,
         ...auth,
@@ -37,12 +37,18 @@ export function createProjectsApi(token: string) {
     },
 
     listAssets: (id: string) =>
-      apiFetch<any[]>(`/projects/${id}/assets`, auth),
+      apiFetch<Asset[]>(`/projects/${id}/assets`, auth),
 
-    listAnnotations: (id: string, assetId: string) =>
-      apiFetch<any[]>(`/projects/${id}/assets/${assetId}/annotations`, auth),
+    deleteAsset: (projectId: string, assetId: string) =>
+      apiFetch<void>(`/projects/${projectId}/assets/${assetId}`, {
+        method: 'DELETE',
+        ...auth,
+      }),
 
-    listAllAnnotations: (id: string) =>
-      apiFetch<any[]>(`/projects/${id}/assets/annotations`, auth),
+    listAnnotations: (projectId: string, assetId: string) =>
+      apiFetch<any[]>(`/projects/${projectId}/assets/${assetId}/annotations`, auth),
+
+    listAllAnnotations: (projectId: string) =>
+      apiFetch<any[]>(`/projects/${projectId}/assets/annotations`, auth),
   }
 }

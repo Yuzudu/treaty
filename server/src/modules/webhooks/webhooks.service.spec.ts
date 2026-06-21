@@ -3,6 +3,7 @@ import { WebhooksService } from './webhooks.service';
 import { ProjectStatus } from '@treaty/shared';
 import type { DrizzleDB } from '../db/db.module';
 import type { PaymentProvider } from '../../providers/payment.provider';
+import type { ShareLinksService } from '../share-links/share-links.service';
 
 interface SelectChain<T> extends Promise<T> {
   from(): SelectChain<T>;
@@ -25,6 +26,7 @@ describe('WebhooksService', () => {
   let service: WebhooksService;
   let mockDb: { select: jest.Mock; update: jest.Mock; transaction: jest.Mock };
   let mockPaymentProvider: { verifyWebhookToken: jest.Mock<boolean, [string]> };
+  let mockShareLinks: Pick<ShareLinksService, 'revoke'>;
   let txUpdateCalls: unknown[];
 
   function makeUpdateChain() {
@@ -61,9 +63,11 @@ describe('WebhooksService', () => {
     mockPaymentProvider = {
       verifyWebhookToken: jest.fn<boolean, [string]>(),
     };
+    mockShareLinks = { revoke: jest.fn().mockResolvedValue(undefined) };
     service = new WebhooksService(
       mockDb as unknown as DrizzleDB,
       mockPaymentProvider as unknown as PaymentProvider,
+      mockShareLinks as unknown as ShareLinksService,
     );
   });
 

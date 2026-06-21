@@ -8,14 +8,12 @@ export class SupabaseStorageService {
   private supabase: SupabaseClient;
 
   constructor(private readonly configService: ConfigService) {
-    const supabaseUrl = this.configService.get<string>(
-      'NEXT_PUBLIC_SUPABASE_URL',
-    );
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_SECRET_KEY');
 
     if (!supabaseUrl || !supabaseKey) {
       throw new Error(
-        'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY environment variables are missing',
+        'SUPABASE_URL or SUPABASE_SECRET_KEY environment variables are missing',
       );
     }
 
@@ -27,14 +25,6 @@ export class SupabaseStorageService {
     });
   }
 
-  /**
-   * Uploads a file buffer to a specific bucket
-   * @param bucketName Name of the bucket (e.g. 'public-previews' or 'private-assets')
-   * @param path The path where the file will be stored in the bucket
-   * @param buffer The file buffer
-   * @param mimeType The file mime type
-   * @returns The storage path or the public URL
-   */
   async uploadFile(
     bucketName: string,
     path: string,
@@ -59,17 +49,26 @@ export class SupabaseStorageService {
     return data.path;
   }
 
-  /**
-   * Gets a public URL for a file in a public bucket
-   */
   getPublicUrl(bucketName: string, path: string): string {
     const { data } = this.supabase.storage.from(bucketName).getPublicUrl(path);
     return data.publicUrl;
   }
 
-  /**
-   * Downloads a file from a specific bucket and returns it as a Buffer
-   */
+  async createSignedUrl(bucketName: string, path: string, expiresIn: number, download = false): Promise<string> {
+    const { data, error } = await this.supabase.storage
+      .from(bucketName)
+      .createSignedUrl(path, expiresIn, { download });
+    if (error || !data?.signedUrl) {
+      throw new Error(`Signed URL creation failed: ${error?.message ?? 'unknown'}`);
+    }
+    return data.signedUrl;
+  }
+
+  async deleteFile(bucketName: string, path: string): Promise<void> {
+    const { error } = await this.supabase.storage.from(bucketName).remove([path]);
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+  }
+
   async downloadFile(bucketName: string, path: string): Promise<Buffer> {
     const { data, error } = await this.supabase.storage
       .from(bucketName)

@@ -1,5 +1,4 @@
 export { SignInForm } from './components/SignInForm'
 export { SignOutButton } from './components/SignOutButton'
 export { UserMenu } from './components/UserMenu'
-export { signOut } from './api/auth.api'
-export type { User, Session, AuthResult } from './types'
+export type { AuthResult } from './types'

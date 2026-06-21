@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import type { Asset } from '../types'
 import { useAuth } from '@/hooks/useAuth'
 import { createProjectsApi } from '../api/projects.api'
 
@@ -13,9 +14,8 @@ export function useProjectAssets(projectId: string) {
     enabled: !!auth && !!projectId,
     staleTime: 5_000,
     refetchInterval: (query) => {
-      const data = query?.state?.data as any[] | undefined;
-      const hasPending = data?.some((asset: any) => !asset.watermarkedUrl);
-      return hasPending ? 2000 : false;
+      const hasPending = (query.state.data as Asset[] | undefined)?.some((a) => !a.watermarkedUrl)
+      return hasPending ? 2000 : false
     },
   })
 }

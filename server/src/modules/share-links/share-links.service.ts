@@ -1,108 +1,179 @@
 import {
   Injectable,
   Inject,
+  InternalServerErrorException,
   NotFoundException,
-  ForbiddenException,
+  GoneException,
+  BadRequestException,
 } from '@nestjs/common';
-import { eq, and, gt } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
+import { eq, and } from 'drizzle-orm';
+import { ConfigService } from '@nestjs/config';
 import { ProjectStatus } from '@treaty/shared';
+import type { SharePreviewDTO } from '@treaty/shared';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
 import {
-  sharelinks,
+  shareLinks,
   projects,
+  users,
   assets,
   collaborations,
   annotationcoordinates,
   videoannotation,
 } from '../../db/schema';
+import { SupabaseStorageService } from '../../providers/storage.service';
 import { CreateAnnotationDto } from './dto/create-annotation.dto';
 
 @Injectable()
 export class ShareLinksService {
-  constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE_DB) private readonly db: DrizzleDB | null,
+    private readonly storageService: SupabaseStorageService,
+    private readonly configService: ConfigService,
+  ) {}
 
-  async create(
-    projectId: string,
-  ): Promise<{ token: string; expiresAt: string }> {
+  private get client(): DrizzleDB {
+    if (!this.db) throw new InternalServerErrorException('Database not available');
+    return this.db;
+  }
+
+  async create(projectId: string): Promise<{ token: string }> {
     const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    await this.db.insert(sharelinks).values({ projectId, token, expiresAt });
-    return { token, expiresAt: expiresAt.toISOString() };
+    await this.client.insert(shareLinks).values({ token, projectId, status: 'ACTIVE' });
+    return { token };
   }
 
-  async findByToken(token: string) {
-    const [row] = await this.db
-      .select({
-        token: sharelinks.token,
-        projectId: sharelinks.projectId,
-        expiresAt: sharelinks.expiresAt,
-        projectStatus: projects.status,
-        priceCents: projects.priceCents,
-        currency: projects.currency,
-      })
-      .from(sharelinks)
-      .innerJoin(projects, eq(sharelinks.projectId, projects.id))
-      .where(and(eq(sharelinks.token, token), gt(sharelinks.expiresAt, new Date())));
-
-    if (!row) throw new NotFoundException('Share link not found or expired');
-    return { ...row, expiresAt: row.expiresAt.toISOString() };
+  async revoke(projectId: string): Promise<void> {
+    await this.client
+      .update(shareLinks)
+      .set({ status: 'REVOKED' })
+      .where(and(eq(shareLinks.projectId, projectId), eq(shareLinks.status, 'ACTIVE')));
   }
 
-  async getProjectAndAssetsByToken(token: string) {
+  async findByToken(token: string): Promise<{ projectId: string; token: string }> {
+    const [link] = await this.client
+      .select()
+      .from(shareLinks)
+      .where(eq(shareLinks.token, token));
+
+    if (!link) throw new NotFoundException('Share link not found');
+    if (link.status === 'REVOKED') throw new GoneException('Share link has been revoked');
+    return { projectId: link.projectId, token: link.token };
+  }
+
+  async getActiveByProjectId(projectId: string): Promise<string | null> {
+    const [link] = await this.client
+      .select({ token: shareLinks.token })
+      .from(shareLinks)
+      .where(and(eq(shareLinks.projectId, projectId), eq(shareLinks.status, 'ACTIVE')));
+    return link?.token ?? null;
+  }
+
+  async getPreview(token: string): Promise<SharePreviewDTO> {
     const shareLink = await this.findByToken(token);
 
-    const projectAssets = await this.db
-      .select()
+    const [projectRow] = await this.client
+      .select({
+        title: projects.title,
+        status: projects.status,
+        priceCents: projects.priceCents,
+        currency: projects.currency,
+        creatorName: users.name,
+      })
+      .from(projects)
+      .innerJoin(users, eq(users.id, projects.userId))
+      .where(eq(projects.id, shareLink.projectId));
+
+    if (!projectRow) throw new NotFoundException('Project not found');
+
+    const assetRows = await this.client
+      .select({
+        id: assets.id,
+        assetType: assets.assetType,
+        watermarkedUrl: assets.watermarkedUrl,
+        expiresAt: assets.expiresAt,
+      })
       .from(assets)
       .where(eq(assets.projectId, shareLink.projectId));
 
+    const expiresAt = assetRows[0]?.expiresAt?.toISOString() ?? null;
+
     return {
-      project: {
-        id: shareLink.projectId,
-        status: shareLink.projectStatus,
-        priceCents: shareLink.priceCents,
-        currency: shareLink.currency,
-      },
-      assets: projectAssets.map((asset) => ({
-        id: asset.id,
-        assetType: asset.assetType,
-        watermarkedUrl: asset.watermarkedUrl,
-        fileUrl: shareLink.projectStatus === ProjectStatus.PAID ? asset.fileUrl : null,
+      status: projectRow.status as ProjectStatus,
+      title: projectRow.title,
+      creatorName: projectRow.creatorName,
+      priceCents: projectRow.priceCents,
+      currency: projectRow.currency,
+      assets: assetRows.map((a) => ({
+        id: a.id,
+        assetType: a.assetType as 'image' | 'video',
+        watermarkedUrl: a.watermarkedUrl,
       })),
+      expiresAt,
     };
   }
 
-  async getFilesForPaidProject(
-    token: string,
-  ): Promise<{ fileUrl: string; assetType: string }[]> {
+  async mintDownloadUrl(token: string, assetId: string): Promise<{ url: string }> {
     const shareLink = await this.findByToken(token);
-    if ((shareLink.projectStatus as ProjectStatus) !== ProjectStatus.PAID) {
-      throw new ForbiddenException('Files not yet unlocked — payment not confirmed');
-    }
-    const rows = await this.db
-      .select({ fileUrl: assets.fileUrl, assetType: assets.assetType })
+
+    const [row] = await this.client
+      .select({
+        projectStatus: projects.status,
+        fileUrl: assets.fileUrl,
+        expiresAt: assets.expiresAt,
+      })
       .from(assets)
-      .where(eq(assets.projectId, shareLink.projectId));
-    return rows
-      .filter((r) => r.fileUrl != null)
-      .map((r) => ({ fileUrl: r.fileUrl!, assetType: r.assetType ?? 'file' }));
+      .innerJoin(projects, eq(projects.id, assets.projectId))
+      .where(and(
+        eq(assets.id, assetId),
+        eq(assets.projectId, shareLink.projectId),
+      ));
+
+    if (!row) throw new NotFoundException('Asset not found');
+
+    const status = row.projectStatus as ProjectStatus;
+
+    if (status !== ProjectStatus.PAID && status !== ProjectStatus.DELIVERED) {
+      throw new BadRequestException('Payment required to download');
+    }
+
+    if (row.expiresAt && new Date() > row.expiresAt) {
+      throw new GoneException('Download window has closed. Contact the creator for renewed access.');
+    }
+
+    if (!row.fileUrl) {
+      throw new InternalServerErrorException('Asset file not available');
+    }
+
+    const SIGNED_URL_TTL = 300;
+    const url = await this.storageService.createSignedUrl('private-assets', row.fileUrl, SIGNED_URL_TTL, true);
+
+    if (status === ProjectStatus.PAID) {
+      this.client
+        .update(projects)
+        .set({ status: ProjectStatus.DELIVERED })
+        .where(and(
+          eq(projects.id, shareLink.projectId),
+          eq(projects.status, ProjectStatus.PAID),
+        ))
+        .execute()
+        .catch((err) => console.error('[mintDownloadUrl] Failed to flip DELIVERED:', err));
+    }
+
+    return { url };
   }
 
   async getAnnotations(token: string, assetId: string) {
     const shareLink = await this.findByToken(token);
 
-    // Verify the asset belongs to this project
-    const [asset] = await this.db
+    const [asset] = await this.client
       .select()
       .from(assets)
       .where(and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)));
 
-    if (!asset) {
-      throw new NotFoundException('Asset not found in this project');
-    }
+    if (!asset) throw new NotFoundException('Asset not found in this project');
 
-    const rows = await this.db
+    const rows = await this.client
       .select({
         collabId: collaborations.id,
         commentText: collaborations.commentText,
@@ -134,19 +205,10 @@ export class ShareLinksService {
       }
       const current = resultsMap.get(r.collabId);
       if (r.coordId) {
-        current.coordinates = {
-          id: r.coordId,
-          coordX: r.coordX,
-          coordY: r.coordY,
-          boundingBox: r.boundingBox,
-        };
+        current.coordinates = { id: r.coordId, coordX: r.coordX, coordY: r.coordY, boundingBox: r.boundingBox };
       }
       if (r.videoAnnId) {
-        current.video = {
-          id: r.videoAnnId,
-          timestampSeconds: r.timestampSeconds,
-          duration: r.duration,
-        };
+        current.video = { id: r.videoAnnId, timestampSeconds: r.timestampSeconds, duration: r.duration };
       }
     }
     return Array.from(resultsMap.values());
@@ -155,22 +217,19 @@ export class ShareLinksService {
   async createAnnotation(token: string, assetId: string, dto: CreateAnnotationDto) {
     const shareLink = await this.findByToken(token);
 
-    // Verify the asset belongs to this project
-    const [asset] = await this.db
+    const [asset] = await this.client
       .select()
       .from(assets)
       .where(and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)));
 
-    if (!asset) {
-      throw new NotFoundException('Asset not found in this project');
-    }
+    if (!asset) throw new NotFoundException('Asset not found in this project');
 
-    return await this.db.transaction(async (tx) => {
+    return this.client.transaction(async (tx) => {
       const [newCollab] = await tx
         .insert(collaborations)
         .values({
           assetId,
-          commentText: dto.commentText || null,
+          commentText: dto.commentText ?? null,
           collaboratorName: dto.collaboratorName,
         })
         .returning();
@@ -183,7 +242,7 @@ export class ShareLinksService {
             collabId: newCollab.id,
             coordX: dto.coordinates.coordX != null ? String(dto.coordinates.coordX) : null,
             coordY: dto.coordinates.coordY != null ? String(dto.coordinates.coordY) : null,
-            boundingBox: dto.coordinates.boundingBox || null,
+            boundingBox: dto.coordinates.boundingBox ?? null,
           })
           .returning();
         newCoords = coordRow;
@@ -207,17 +266,8 @@ export class ShareLinksService {
         assetId,
         commentText: newCollab.commentText,
         collaboratorName: newCollab.collaboratorName,
-        coordinates: newCoords ? {
-          id: newCoords.id,
-          coordX: newCoords.coordX,
-          coordY: newCoords.coordY,
-          boundingBox: newCoords.boundingBox,
-        } : null,
-        video: newVideo ? {
-          id: newVideo.id,
-          timestampSeconds: newVideo.timestampSeconds,
-          duration: newVideo.duration,
-        } : null,
+        coordinates: newCoords ? { id: newCoords.id, coordX: newCoords.coordX, coordY: newCoords.coordY, boundingBox: newCoords.boundingBox } : null,
+        video: newVideo ? { id: newVideo.id, timestampSeconds: newVideo.timestampSeconds, duration: newVideo.duration } : null,
       };
     });
   }

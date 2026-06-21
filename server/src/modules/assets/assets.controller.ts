@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Post,
   Param,
   Req,
@@ -42,6 +44,16 @@ export class AssetsController {
     @UploadedFile() file: UploadedFileDto,
   ) {
     return this.assetsService.upload(req.userId, projectId, file);
+  }
+
+  @Delete(':assetId')
+  @HttpCode(204)
+  remove(
+    @Req() req: AuthRequest,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('assetId', ParseUUIDPipe) assetId: string,
+  ) {
+    return this.assetsService.delete(req.userId, projectId, assetId);
   }
 
   @Get('annotations')

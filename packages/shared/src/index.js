@@ -13,11 +13,11 @@ var ProjectStatus;
 })(ProjectStatus || (exports.ProjectStatus = ProjectStatus = {}));
 exports.ALLOWED_TRANSITIONS = {
     [ProjectStatus.DRAFT]: [ProjectStatus.PREVIEW_SHARED, ProjectStatus.EXPIRED],
-    [ProjectStatus.PREVIEW_SHARED]: [ProjectStatus.AWAITING_PAYMENT, ProjectStatus.EXPIRED],
-    [ProjectStatus.AWAITING_PAYMENT]: [ProjectStatus.PAID, ProjectStatus.EXPIRED],
+    [ProjectStatus.PREVIEW_SHARED]: [ProjectStatus.DRAFT, ProjectStatus.AWAITING_PAYMENT, ProjectStatus.EXPIRED],
+    [ProjectStatus.AWAITING_PAYMENT]: [ProjectStatus.PREVIEW_SHARED, ProjectStatus.PAID, ProjectStatus.EXPIRED],
     [ProjectStatus.PAID]: [ProjectStatus.DELIVERED],
     [ProjectStatus.DELIVERED]: [],
-    [ProjectStatus.EXPIRED]: [],
+    [ProjectStatus.EXPIRED]: [ProjectStatus.PREVIEW_SHARED],
 };
 function canTransition(from, to) {
     return exports.ALLOWED_TRANSITIONS[from].includes(to);

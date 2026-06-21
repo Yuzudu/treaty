@@ -8,13 +8,14 @@ export interface PaymentProvider {
 
   createCheckoutSession(params: {
     projectId: string;
+    token: string;
     subAccountId: string;
     amountCents: number;
     currency: string;
     platformFeeCents: number;
-    shareToken: string;
   }): Promise<{ url: string; externalId: string }>;
 
+  expireInvoice(invoiceId: string): Promise<void>;
   verifyWebhookToken(token: string): boolean;
 }
 

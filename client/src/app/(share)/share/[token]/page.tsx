@@ -1,8 +1,5 @@
 import { notFound } from "next/navigation"
-import { validateShareToken } from "@/features/share"
-import { SharePreview } from "@/features/share"
-import { ExpiredLink } from "@/features/share"
-import { PaymentButton } from "@/features/payment"
+import { validateShareToken, SharePreview, ExpiredLink, RevokedLink } from "@/features/share"
 
 export const dynamic = "force-dynamic"
 
@@ -12,14 +9,19 @@ export const metadata = {
 
 interface SharePageProps {
   params: Promise<{ token: string }>
+  searchParams: Promise<{ paying?: string; failed?: string }>
 }
 
-export default async function SharePage({ params }: SharePageProps) {
-  const { token } = await params
+export default async function SharePage({ params, searchParams }: SharePageProps) {
+  const [{ token }, sp] = await Promise.all([params, searchParams])
   const result = await validateShareToken(token)
 
   if (result.status === "not-found") {
     notFound()
+  }
+
+  if (result.status === "revoked") {
+    return <RevokedLink />
   }
 
   if (result.status === "expired") {
@@ -35,12 +37,8 @@ export default async function SharePage({ params }: SharePageProps) {
         </p>
       </div>
       <div className="rounded-xl border bg-background p-6">
-        <SharePreview shareLink={result.shareLink} />
+        <SharePreview token={token} paying={!!sp.paying} failed={!!sp.failed} />
       </div>
-      {result.shareLink.projectStatus === "AWAITING_PAYMENT" && (
-        <PaymentButton token={result.shareLink.token} />
-      )}
-      {/* TODO(phase-1): add annotation tools */}
     </div>
   )
 }

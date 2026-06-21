@@ -1,12 +1,13 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { ProjectStatus } from '@treaty/shared';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
 import { projects, users, transactions } from '../../db/schema';
@@ -18,6 +19,8 @@ import { ShareLinksService } from '../share-links/share-links.service';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDB | null,
     @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProvider,
@@ -65,7 +68,7 @@ export class OrdersService {
     return {
       onboarded: true,
       active: user.paymentAccountStatus === 'LIVE',
-      status: user.paymentAccountStatus,
+      status: user.paymentAccountStatus as string | null,
     };
   }
 
@@ -94,7 +97,7 @@ export class OrdersService {
       );
     }
     if (creator.paymentAccountStatus !== 'LIVE') {
-      throw new ConflictException('Creator payment account is not active');
+      throw new BadRequestException('Creator payment account is not active.');
     }
 
     const parsedFeePercent = Number(process.env.PLATFORM_FEE_PERCENT);
@@ -104,11 +107,11 @@ export class OrdersService {
 
     const session = await this.paymentProvider.createCheckoutSession({
       projectId: project.id,
+      token,
       subAccountId: creator.paymentAccountId,
       amountCents,
       currency: project.currency ?? 'PHP',
       platformFeeCents,
-      shareToken: token,
     });
 
     try {
@@ -130,6 +133,51 @@ export class OrdersService {
     }
 
     return { url: session.url };
+  }
+
+  async cancelPendingOrder(projectId: string): Promise<void> {
+    const [completed] = await this.client
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.projectId, projectId),
+          or(
+            eq(transactions.payoutStatus, 'PAID'),
+            eq(transactions.payoutStatus, 'DELIVERED'),
+          ),
+        ),
+      );
+
+    if (completed) {
+      throw new BadRequestException('Cannot cancel a completed transaction.');
+    }
+
+    const [pending] = await this.client
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.projectId, projectId),
+          eq(transactions.payoutStatus, 'PENDING'),
+        ),
+      );
+
+    if (!pending) return;
+
+    try {
+      await this.paymentProvider.expireInvoice(pending.paymentIntentId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Could not expire Xendit invoice ${pending.paymentIntentId}: ${message}`,
+      );
+    }
+
+    await this.client
+      .update(transactions)
+      .set({ payoutStatus: 'CANCELLED' })
+      .where(eq(transactions.id, pending.id));
   }
 
   async findOne(userId: string, id: string) {

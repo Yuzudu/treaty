@@ -1,4 +1,4 @@
-export type { Project } from './types'
+export type { Project, Asset } from './types'
 export { createProjectsApi } from './api/projects.api'
 export { useProjects } from './hooks/useProjects'
 export { useProject } from './hooks/useProject'

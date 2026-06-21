@@ -50,16 +50,12 @@ export const assets = pgTable('assets', {
   expiresAt: timestamp('expiresat', { withTimezone: true }),
 });
 
-export const sharelinks = pgTable('sharelinks', {
-  id: uuid('linkid').primaryKey().defaultRandom(),
-  projectId: uuid('projectid')
-    .notNull()
-    .references(() => projects.id),
-  token: varchar('token').notNull().unique(),
-  expiresAt: timestamp('expiresat', { withTimezone: true }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+export const shareLinks = pgTable('share_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  token: varchar('token', { length: 64 }).notNull().unique(),
+  projectId: uuid('project_id').references(() => projects.id).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('ACTIVE'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const collaborations = pgTable('collaborations', {
