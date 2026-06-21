@@ -23,20 +23,20 @@ export class ShareLinksController {
 
   @Get(':token')
   findByToken(@Param('token') token: string) {
-    // Public route — no auth guard
     return this.shareLinksService.findByToken(token);
   }
 
-  @Get(':token/project')
-  getProjectAndAssets(@Param('token') token: string) {
-    // Public route — no auth guard
-    return this.shareLinksService.getProjectAndAssetsByToken(token);
+  @Get(':token/preview')
+  getPreview(@Param('token') token: string) {
+    return this.shareLinksService.getPreview(token);
   }
 
-  @Get(':token/files')
-  getFiles(@Param('token') token: string) {
-    // Public — gated by project status PAID inside service
-    return this.shareLinksService.getFilesForPaidProject(token);
+  @Get(':token/assets/:assetId/download')
+  mintDownload(
+    @Param('token') token: string,
+    @Param('assetId') assetId: string,
+  ) {
+    return this.shareLinksService.mintDownloadUrl(token, assetId);
   }
 
   @Get(':token/assets/:assetId/annotations')
@@ -44,7 +44,6 @@ export class ShareLinksController {
     @Param('token') token: string,
     @Param('assetId', ParseUUIDPipe) assetId: string,
   ) {
-    // Public route — no auth guard
     return this.shareLinksService.getAnnotations(token, assetId);
   }
 
@@ -54,7 +53,6 @@ export class ShareLinksController {
     @Param('assetId', ParseUUIDPipe) assetId: string,
     @Body() dto: CreateAnnotationDto,
   ) {
-    // Public route — no auth guard
     return this.shareLinksService.createAnnotation(token, assetId, dto);
   }
 }

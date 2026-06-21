@@ -83,6 +83,8 @@ describe('OrdersService', () => {
     };
     mockShareLinksService = {
       create: jest.fn(),
+      revoke: jest.fn(),
+      getActiveByProjectId: jest.fn(),
       findByToken: jest
         .fn()
         .mockResolvedValue({ projectId: 'proj-1', token: 'tok' }),
@@ -144,7 +146,7 @@ describe('OrdersService', () => {
       );
     });
 
-    it('throws ConflictException when creator payment account is not LIVE', async () => {
+    it('throws BadRequestException when creator payment account is not LIVE', async () => {
       mockDb.select
         .mockReturnValueOnce(makeChain([mockProject]))
         .mockReturnValueOnce(
@@ -158,7 +160,7 @@ describe('OrdersService', () => {
         );
 
       await expect(service.createCheckoutFromShareToken('tok')).rejects.toThrow(
-        ConflictException,
+        BadRequestException,
       );
     });
 

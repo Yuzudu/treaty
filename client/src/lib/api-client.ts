@@ -45,6 +45,3 @@ export async function apiFetch<T>(
 
   return res.json() as Promise<T>
 }
-export const apiClient = {
-  health: () => apiFetch<{ status: string }>("/health"),
-}

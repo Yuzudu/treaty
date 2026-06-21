@@ -13,7 +13,7 @@ export function useTransition(projectId: string) {
       createProjectsApi(auth!.token).transition(projectId, to, priceCents, currency),
     onSuccess: (updated) => {
       queryClient.setQueryData(['projects', auth?.userId, projectId], updated)
-      queryClient.invalidateQueries({ queryKey: ['projects', auth?.userId] })
+      queryClient.invalidateQueries({ queryKey: ['projects', auth?.userId], exact: false })
     },
   })
 }

@@ -13,6 +13,7 @@ export interface XenditSubAccountStatus {
 export interface XenditInvoice {
   id: string;
   invoice_url: string;
+  status?: string;
 }
 
 export class XenditClient {
@@ -56,6 +57,16 @@ export class XenditClient {
       );
     }
     return res.json() as Promise<XenditSubAccountStatus>;
+  }
+
+  async expireInvoice(invoiceId: string): Promise<void> {
+    const res = await fetch(`${XENDIT_API_BASE}/v2/invoices/${invoiceId}/expire`, {
+      method: 'POST',
+      headers: { Authorization: this.authHeader() },
+    });
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`Xendit expireInvoice failed: ${res.status} ${await res.text()}`);
+    }
   }
 
   async createInvoice(params: {

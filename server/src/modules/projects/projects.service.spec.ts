@@ -2,6 +2,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { ProjectStatus } from '@treaty/shared';
 import type { DrizzleDB } from '../db/db.module';
+import type { ShareLinksService } from '../share-links/share-links.service';
 
 interface Chain<T> extends Promise<T> {
   from(): Chain<T>;
@@ -40,6 +41,7 @@ type MockDb = {
 describe('ProjectsService', () => {
   let service: ProjectsService;
   let mockDb: MockDb;
+  let mockShareLinks: jest.Mocked<ShareLinksService>;
 
   beforeEach(() => {
     mockDb = {
@@ -47,7 +49,22 @@ describe('ProjectsService', () => {
       insert: jest.fn().mockReturnValue(makeChain([mockProject])),
       update: jest.fn().mockReturnValue(makeChain([mockProject])),
     };
-    service = new ProjectsService(mockDb as unknown as DrizzleDB);
+    mockShareLinks = {
+      create: jest.fn().mockResolvedValue({ token: 'tok' }),
+      revoke: jest.fn().mockResolvedValue(undefined),
+      findByToken: jest
+        .fn()
+        .mockResolvedValue({ projectId: 'proj-1', token: 'tok' }),
+      getActiveByProjectId: jest.fn().mockResolvedValue(null),
+    } as unknown as jest.Mocked<ShareLinksService>;
+    const mockOrdersService = {
+      cancelPendingOrder: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new ProjectsService(
+      mockDb as unknown as DrizzleDB,
+      mockShareLinks,
+      mockOrdersService as any,
+    );
   });
 
   describe('findAll', () => {
@@ -107,7 +124,9 @@ describe('ProjectsService', () => {
         priceCents: 50000,
         currency: 'PHP',
       };
-      mockDb.select.mockReturnValue(makeChain([previewShared]));
+      mockDb.select
+        .mockReturnValueOnce(makeChain([previewShared]))
+        .mockReturnValueOnce(makeChain([{ paymentAccountStatus: 'LIVE' }]));
       mockDb.update.mockReturnValue(makeChain([awaitingPayment]));
 
       const result = await service.transition('user-1', 'proj-1', {
