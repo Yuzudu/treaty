@@ -38,5 +38,11 @@ export function createProjectsApi(token: string) {
 
     listAssets: (id: string) =>
       apiFetch<any[]>(`/projects/${id}/assets`, auth),
+
+    listAnnotations: (id: string, assetId: string) =>
+      apiFetch<any[]>(`/projects/${id}/assets/${assetId}/annotations`, auth),
+
+    listAllAnnotations: (id: string) =>
+      apiFetch<any[]>(`/projects/${id}/assets/annotations`, auth),
   }
 }

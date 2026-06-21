@@ -27,7 +27,7 @@ export default async function SharePage({ params }: SharePageProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl space-y-6">
+    <div className="w-full max-w-6xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Project Preview</h1>
         <p className="mt-1 text-sm text-muted-foreground">

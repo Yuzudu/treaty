@@ -1,6 +1,8 @@
 export { SharePreview } from "./components/SharePreview"
 export { ExpiredLink } from "./components/ExpiredLink"
 export { useShareLink } from "./hooks/useShareLink"
+export { useShareProject } from "./hooks/useShareProject"
+export { useShareAnnotations } from "./hooks/useShareAnnotations"
 export { shareApi } from "./api/share.api"
 export { validateShareToken } from "./api/validate-share-token"
 export type { ShareLink, ShareTokenResult } from "./types"
