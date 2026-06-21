@@ -52,10 +52,19 @@ describe('ProjectsService', () => {
     mockShareLinks = {
       create: jest.fn().mockResolvedValue({ token: 'tok' }),
       revoke: jest.fn().mockResolvedValue(undefined),
-      findByToken: jest.fn().mockResolvedValue({ projectId: 'proj-1', token: 'tok' }),
+      findByToken: jest
+        .fn()
+        .mockResolvedValue({ projectId: 'proj-1', token: 'tok' }),
       getActiveByProjectId: jest.fn().mockResolvedValue(null),
     } as unknown as jest.Mocked<ShareLinksService>;
-    service = new ProjectsService(mockDb as unknown as DrizzleDB, mockShareLinks);
+    const mockOrdersService = {
+      cancelPendingOrder: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new ProjectsService(
+      mockDb as unknown as DrizzleDB,
+      mockShareLinks,
+      mockOrdersService as any,
+    );
   });
 
   describe('findAll', () => {
@@ -115,7 +124,9 @@ describe('ProjectsService', () => {
         priceCents: 50000,
         currency: 'PHP',
       };
-      mockDb.select.mockReturnValue(makeChain([previewShared]));
+      mockDb.select
+        .mockReturnValueOnce(makeChain([previewShared]))
+        .mockReturnValueOnce(makeChain([{ paymentAccountStatus: 'LIVE' }]));
       mockDb.update.mockReturnValue(makeChain([awaitingPayment]));
 
       const result = await service.transition('user-1', 'proj-1', {

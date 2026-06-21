@@ -6,5 +6,4 @@ export interface ShareLink {
 export type ShareTokenResult =
   | { status: "valid"; shareLink: ShareLink }
   | { status: "revoked" }
-  | { status: "expired" }
   | { status: "not-found" }

@@ -64,10 +64,12 @@ describe('WebhooksService', () => {
       verifyWebhookToken: jest.fn<boolean, [string]>(),
     };
     mockShareLinks = { revoke: jest.fn().mockResolvedValue(undefined) };
+    const mockConfigService = { get: jest.fn().mockReturnValue(30) };
     service = new WebhooksService(
       mockDb as unknown as DrizzleDB,
       mockPaymentProvider as unknown as PaymentProvider,
       mockShareLinks as unknown as ShareLinksService,
+      mockConfigService as any,
     );
   });
 
@@ -155,6 +157,7 @@ describe('WebhooksService', () => {
     expect(mockDb.transaction).toHaveBeenCalled();
     expect(txUpdateCalls).toEqual([
       { status: ProjectStatus.PAID },
+      { expiresAt: expect.any(Date) },
       { payoutStatus: 'PAID' },
     ]);
   });

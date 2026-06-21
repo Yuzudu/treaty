@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { validateShareToken, SharePreview, ExpiredLink, RevokedLink } from "@/features/share"
+import { validateShareToken, SharePreview, RevokedLink } from "@/features/share"
 
 export const dynamic = "force-dynamic"
 
@@ -22,10 +22,6 @@ export default async function SharePage({ params, searchParams }: SharePageProps
 
   if (result.status === "revoked") {
     return <RevokedLink />
-  }
-
-  if (result.status === "expired") {
-    return <ExpiredLink />
   }
 
   return (

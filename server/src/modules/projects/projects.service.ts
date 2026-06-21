@@ -108,6 +108,8 @@ export class ProjectsService {
       // Revoke any existing link first (handles fresh share + revival)
       await this.shareLinksService.revoke(id);
       shareToken = (await this.shareLinksService.create(id)).token;
+      // Clear download expiry so revived projects don't inherit old delivery window
+      await this.client.update(assets).set({ expiresAt: null }).where(eq(assets.projectId, id));
     }
 
     if (dto.to === ProjectStatus.DRAFT || dto.to === ProjectStatus.EXPIRED) {
