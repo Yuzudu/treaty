@@ -357,16 +357,14 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
         <>
           <div className="space-y-3">
             {sectionLabel('Files')}
-            {isProtected ? <ScreenshotShield /> : (
-              <div className="space-y-3">
-                {uploadDropzone}
-                {hasAssets ? assetGrid : (
-                  <p className="text-xs text-muted-foreground text-center py-1">
-                    No files yet — upload something to get started.
-                  </p>
-                )}
-              </div>
-            )}
+            <div className="space-y-3">
+              {uploadDropzone}
+              {hasAssets ? (isProtected ? <ScreenshotShield /> : assetGrid) : (
+                <p className="text-xs text-muted-foreground text-center py-1">
+                  No files yet — upload something to get started.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-2 border-t border-border flex-wrap">
@@ -424,12 +422,16 @@ export function ProjectDetail({ id }: ProjectDetailProps) {
                 {!onboarding.onboarded ? (
                   <>
                     <p className="font-semibold text-amber-800 dark:text-amber-300">Connect your payout account to accept payments</p>
-                    <p className="text-amber-700 dark:text-amber-400">Go to Settings → Payments to set up your Xendit account.</p>
+                    <p className="text-amber-700 dark:text-amber-400">
+                      <a href="/settings" className="underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-300">Go to Settings → Payments</a> to set up your Xendit account.
+                    </p>
                   </>
                 ) : (
                   <>
                     <p className="font-semibold text-amber-800 dark:text-amber-300">Payout account verification in progress</p>
-                    <p className="text-amber-700 dark:text-amber-400">Your account is being verified — this usually takes 3–5 business days.</p>
+                    <p className="text-amber-700 dark:text-amber-400">
+                      Your account is being verified — this usually takes 3–5 business days. Check status in <a href="/settings" className="underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-300">Settings → Payments</a>.
+                    </p>
                   </>
                 )}
               </div>

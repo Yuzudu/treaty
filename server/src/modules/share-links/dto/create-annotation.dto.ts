@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, IsOptional, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CoordinatesDto {
@@ -23,7 +29,7 @@ export class VideoAnnotationDto {
 export class CreateAnnotationDto {
   @IsString()
   @IsNotEmpty()
-  collaboratorName: string;
+  collaboratorName!: string;
 
   @IsString()
   @IsOptional()

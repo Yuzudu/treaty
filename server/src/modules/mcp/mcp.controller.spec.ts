@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request, Response } from 'express';
 import { McpController } from './mcp.controller';
 import { McpService } from './mcp.service';
 import { McpApiKeyGuard } from './mcp-api-key.guard';
@@ -29,16 +30,16 @@ describe('McpController', () => {
   });
 
   it('post() delegates to McpService.handleRequest', async () => {
-    const req = {} as any;
-    const res = {} as any;
+    const req = {} as unknown as Request;
+    const res = {} as unknown as Response;
     const body = {};
     await controller.post(req, res, body);
     expect(mockMcpService.handleRequest).toHaveBeenCalledWith(req, res, body);
   });
 
   it('get() delegates to McpService.handleRequest', async () => {
-    const req = {} as any;
-    const res = {} as any;
+    const req = {} as unknown as Request;
+    const res = {} as unknown as Response;
     await controller.get(req, res);
     expect(mockMcpService.handleRequest).toHaveBeenCalledWith(
       req,
@@ -48,8 +49,8 @@ describe('McpController', () => {
   });
 
   it('delete() delegates to McpService.handleRequest', async () => {
-    const req = {} as any;
-    const res = {} as any;
+    const req = {} as unknown as Request;
+    const res = {} as unknown as Response;
     await controller.delete(req, res);
     expect(mockMcpService.handleRequest).toHaveBeenCalledWith(
       req,

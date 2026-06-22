@@ -10,10 +10,16 @@ import { eq, and, sql } from 'drizzle-orm';
 import { ProjectStatus } from '@treaty/shared';
 import { randomUUID } from 'crypto';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
-import { assets, collaborations, annotationcoordinates, videoannotation } from '../../db/schema';
+import {
+  assets,
+  collaborations,
+  annotationcoordinates,
+  videoannotation,
+} from '../../db/schema';
 import { ProjectsService } from '../projects/projects.service';
 import { SupabaseStorageService } from '../../providers/storage.service';
 import { WatermarkService } from '../../providers/watermark.service';
+import { buildAnnotationMap } from '../../common/annotation.utils';
 
 export interface UploadedFile {
   fieldname: string;
@@ -103,8 +109,9 @@ export class AssetsService {
         .values({
           projectId: project.id,
           assetType,
-          fileUrl: privatePath, // Store path in private-assets bucket
-          watermarkedUrl: null, // Will be generated asynchronously in the background
+          fileUrl: privatePath,
+          watermarkedUrl: null,
+          status: 'PROCESSING',
         })
         .returning();
 
@@ -116,10 +123,19 @@ export class AssetsService {
         file.mimetype,
         fileExtension,
         assetType,
-      ).catch((err) => {
+      ).catch(async (err: Error) => {
         this.logger.error(
           `Background watermarking failed for asset ${insertedAsset.id}: ${err.message}`,
         );
+        await this.client
+          .update(assets)
+          .set({ status: 'FAILED' })
+          .where(eq(assets.id, insertedAsset.id))
+          .catch((dbErr: Error) =>
+            this.logger.error(
+              `Failed to mark asset ${insertedAsset.id} as FAILED: ${dbErr.message}`,
+            ),
+          );
       });
 
       return insertedAsset;
@@ -130,11 +146,17 @@ export class AssetsService {
     }
   }
 
-  async delete(userId: string, projectId: string, assetId: string): Promise<void> {
+  async delete(
+    userId: string,
+    projectId: string,
+    assetId: string,
+  ): Promise<void> {
     const project = await this.projectsService.findOne(userId, projectId);
 
-    if (project.status !== ProjectStatus.DRAFT) {
-      throw new BadRequestException('Assets can only be deleted while project is in DRAFT');
+    if ((project.status as ProjectStatus) !== ProjectStatus.DRAFT) {
+      throw new BadRequestException(
+        'Assets can only be deleted while project is in DRAFT',
+      );
     }
 
     const [asset] = await this.client
@@ -147,12 +169,16 @@ export class AssetsService {
     await this.client.delete(assets).where(eq(assets.id, assetId));
 
     if (asset.fileUrl) {
-      void this.storageService.deleteFile('private-assets', asset.fileUrl).catch(
-        (err: Error) => this.logger.warn(`Failed to delete private asset: ${err.message}`),
-      );
-      void this.storageService.deleteFile('public-previews', asset.fileUrl).catch(
-        (err: Error) => this.logger.warn(`Failed to delete preview: ${err.message}`),
-      );
+      void this.storageService
+        .deleteFile('private-assets', asset.fileUrl)
+        .catch((err: Error) =>
+          this.logger.warn(`Failed to delete private asset: ${err.message}`),
+        );
+      void this.storageService
+        .deleteFile('public-previews', asset.fileUrl)
+        .catch((err: Error) =>
+          this.logger.warn(`Failed to delete preview: ${err.message}`),
+        );
     }
   }
 
@@ -196,7 +222,7 @@ export class AssetsService {
     // Update database record with the public watermarked URL
     await this.client
       .update(assets)
-      .set({ watermarkedUrl: publicUrl })
+      .set({ watermarkedUrl: publicUrl, status: 'READY' })
       .where(eq(assets.id, assetId));
 
     this.logger.log(
@@ -233,40 +259,24 @@ export class AssetsService {
         duration: videoannotation.duration,
       })
       .from(collaborations)
-      .leftJoin(annotationcoordinates, eq(collaborations.id, annotationcoordinates.collabId))
-      .leftJoin(videoannotation, eq(collaborations.id, videoannotation.collabId))
+      .leftJoin(
+        annotationcoordinates,
+        eq(collaborations.id, annotationcoordinates.collabId),
+      )
+      .leftJoin(
+        videoannotation,
+        eq(collaborations.id, videoannotation.collabId),
+      )
       .where(eq(collaborations.assetId, assetId));
 
-    const resultsMap = new Map<string, any>();
-    for (const r of rows) {
-      if (!resultsMap.has(r.collabId)) {
-        resultsMap.set(r.collabId, {
-          id: r.collabId,
-          assetId,
-          commentText: r.commentText,
-          collaboratorName: r.collaboratorName,
-          coordinates: null,
-          video: null,
-        });
-      }
-      const current = resultsMap.get(r.collabId);
-      if (r.coordId) {
-        current.coordinates = {
-          id: r.coordId,
-          coordX: r.coordX,
-          coordY: r.coordY,
-          boundingBox: r.boundingBox,
-        };
-      }
-      if (r.videoAnnId) {
-        current.video = {
-          id: r.videoAnnId,
-          timestampSeconds: r.timestampSeconds,
-          duration: r.duration,
-        };
-      }
-    }
-    return Array.from(resultsMap.values());
+    return buildAnnotationMap(rows, (r) => ({
+      id: r.collabId,
+      assetId,
+      commentText: r.commentText,
+      collaboratorName: r.collaboratorName,
+      coordinates: null,
+      video: null,
+    }));
   }
 
   async getAllAnnotations(userId: string, projectId: string) {
@@ -291,40 +301,24 @@ export class AssetsService {
       })
       .from(collaborations)
       .innerJoin(assets, eq(collaborations.assetId, assets.id))
-      .leftJoin(annotationcoordinates, eq(collaborations.id, annotationcoordinates.collabId))
-      .leftJoin(videoannotation, eq(collaborations.id, videoannotation.collabId))
+      .leftJoin(
+        annotationcoordinates,
+        eq(collaborations.id, annotationcoordinates.collabId),
+      )
+      .leftJoin(
+        videoannotation,
+        eq(collaborations.id, videoannotation.collabId),
+      )
       .where(eq(assets.projectId, projectId));
 
-    const resultsMap = new Map<string, any>();
-    for (const r of rows) {
-      if (!resultsMap.has(r.collabId)) {
-        resultsMap.set(r.collabId, {
-          id: r.collabId,
-          assetId: r.assetId,
-          assetType: r.assetType,
-          commentText: r.commentText,
-          collaboratorName: r.collaboratorName,
-          coordinates: null,
-          video: null,
-        });
-      }
-      const current = resultsMap.get(r.collabId);
-      if (r.coordId) {
-        current.coordinates = {
-          id: r.coordId,
-          coordX: r.coordX,
-          coordY: r.coordY,
-          boundingBox: r.boundingBox,
-        };
-      }
-      if (r.videoAnnId) {
-        current.video = {
-          id: r.videoAnnId,
-          timestampSeconds: r.timestampSeconds,
-          duration: r.duration,
-        };
-      }
-    }
-    return Array.from(resultsMap.values());
+    return buildAnnotationMap(rows, (r) => ({
+      id: r.collabId,
+      assetId: r.assetId,
+      assetType: r.assetType,
+      commentText: r.commentText,
+      collaboratorName: r.collaboratorName,
+      coordinates: null,
+      video: null,
+    }));
   }
 }

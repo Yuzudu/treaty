@@ -7,6 +7,7 @@ import { AssetsService } from '../assets/assets.service';
 import { OrdersService } from '../orders/orders.service';
 import { ProjectsService } from '../projects/projects.service';
 import { ShareLinksService } from '../share-links/share-links.service';
+import { TransitionProjectDto } from '../projects/dto/transition-project.dto';
 
 @Injectable()
 export class McpService {
@@ -70,7 +71,9 @@ export class McpService {
       { userId: z.string(), id: z.string(), to: z.string() },
       ({ userId, id, to }) =>
         this.callTool(() =>
-          this.projects.transition(userId, id, { to } as any),
+          this.projects.transition(userId, id, {
+            to,
+          } as unknown as TransitionProjectDto),
         ),
     );
 

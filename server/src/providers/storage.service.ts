@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseStorageService {
   private readonly logger = new Logger(SupabaseStorageService.name);
-  private supabase: SupabaseClient;
+  private supabase!: ReturnType<typeof createClient>;
 
   constructor(private readonly configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
@@ -54,18 +54,27 @@ export class SupabaseStorageService {
     return data.publicUrl;
   }
 
-  async createSignedUrl(bucketName: string, path: string, expiresIn: number, download = false): Promise<string> {
+  async createSignedUrl(
+    bucketName: string,
+    path: string,
+    expiresIn: number,
+    download = false,
+  ): Promise<string> {
     const { data, error } = await this.supabase.storage
       .from(bucketName)
       .createSignedUrl(path, expiresIn, { download });
     if (error || !data?.signedUrl) {
-      throw new Error(`Signed URL creation failed: ${error?.message ?? 'unknown'}`);
+      throw new Error(
+        `Signed URL creation failed: ${error?.message ?? 'unknown'}`,
+      );
     }
     return data.signedUrl;
   }
 
   async deleteFile(bucketName: string, path: string): Promise<void> {
-    const { error } = await this.supabase.storage.from(bucketName).remove([path]);
+    const { error } = await this.supabase.storage
+      .from(bucketName)
+      .remove([path]);
     if (error) throw new Error(`Delete failed: ${error.message}`);
   }
 

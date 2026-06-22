@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { ConfigService } from '@nestjs/config';
 import { ProjectStatus } from '@treaty/shared';
 import type { SharePreviewDTO } from '@treaty/shared';
@@ -23,6 +23,8 @@ import {
 } from '../../db/schema';
 import { SupabaseStorageService } from '../../providers/storage.service';
 import { CreateAnnotationDto } from './dto/create-annotation.dto';
+import { buildAnnotationMap } from '../../common/annotation.utils';
+import { calculateExpiresAt } from '../../common/date.utils';
 
 @Injectable()
 export class ShareLinksService {
@@ -33,13 +35,16 @@ export class ShareLinksService {
   ) {}
 
   private get client(): DrizzleDB {
-    if (!this.db) throw new InternalServerErrorException('Database not available');
+    if (!this.db)
+      throw new InternalServerErrorException('Database not available');
     return this.db;
   }
 
   async create(projectId: string): Promise<{ token: string }> {
     const token = randomBytes(32).toString('hex');
-    await this.client.insert(shareLinks).values({ token, projectId, status: 'ACTIVE' });
+    await this.client
+      .insert(shareLinks)
+      .values({ token, projectId, status: 'ACTIVE' });
     return { token };
   }
 
@@ -47,17 +52,25 @@ export class ShareLinksService {
     await this.client
       .update(shareLinks)
       .set({ status: 'REVOKED' })
-      .where(and(eq(shareLinks.projectId, projectId), eq(shareLinks.status, 'ACTIVE')));
+      .where(
+        and(
+          eq(shareLinks.projectId, projectId),
+          eq(shareLinks.status, 'ACTIVE'),
+        ),
+      );
   }
 
-  async findByToken(token: string): Promise<{ projectId: string; token: string }> {
+  async findByToken(
+    token: string,
+  ): Promise<{ projectId: string; token: string }> {
     const [link] = await this.client
       .select()
       .from(shareLinks)
       .where(eq(shareLinks.token, token));
 
     if (!link) throw new NotFoundException('Share link not found');
-    if (link.status === 'REVOKED') throw new GoneException('Share link has been revoked');
+    if (link.status === 'REVOKED')
+      throw new GoneException('Share link has been revoked');
     return { projectId: link.projectId, token: link.token };
   }
 
@@ -65,7 +78,12 @@ export class ShareLinksService {
     const [link] = await this.client
       .select({ token: shareLinks.token })
       .from(shareLinks)
-      .where(and(eq(shareLinks.projectId, projectId), eq(shareLinks.status, 'ACTIVE')));
+      .where(
+        and(
+          eq(shareLinks.projectId, projectId),
+          eq(shareLinks.status, 'ACTIVE'),
+        ),
+      );
     return link?.token ?? null;
   }
 
@@ -113,7 +131,10 @@ export class ShareLinksService {
     };
   }
 
-  async mintDownloadUrl(token: string, assetId: string): Promise<{ url: string }> {
+  async mintDownloadUrl(
+    token: string,
+    assetId: string,
+  ): Promise<{ url: string }> {
     const shareLink = await this.findByToken(token);
 
     const [row] = await this.client
@@ -124,10 +145,9 @@ export class ShareLinksService {
       })
       .from(assets)
       .innerJoin(projects, eq(projects.id, assets.projectId))
-      .where(and(
-        eq(assets.id, assetId),
-        eq(assets.projectId, shareLink.projectId),
-      ));
+      .where(
+        and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)),
+      );
 
     if (!row) throw new NotFoundException('Asset not found');
 
@@ -138,7 +158,9 @@ export class ShareLinksService {
     }
 
     if (row.expiresAt && new Date() > row.expiresAt) {
-      throw new GoneException('Download window has closed. Contact the creator for renewed access.');
+      throw new GoneException(
+        'Download window has closed. You can renew access from the share link.',
+      );
     }
 
     if (!row.fileUrl) {
@@ -146,21 +168,68 @@ export class ShareLinksService {
     }
 
     const SIGNED_URL_TTL = 300;
-    const url = await this.storageService.createSignedUrl('private-assets', row.fileUrl, SIGNED_URL_TTL, true);
+    const url = await this.storageService.createSignedUrl(
+      'private-assets',
+      row.fileUrl,
+      SIGNED_URL_TTL,
+      true,
+    );
 
     if (status === ProjectStatus.PAID) {
       this.client
         .update(projects)
         .set({ status: ProjectStatus.DELIVERED })
-        .where(and(
-          eq(projects.id, shareLink.projectId),
-          eq(projects.status, ProjectStatus.PAID),
-        ))
+        .where(
+          and(
+            eq(projects.id, shareLink.projectId),
+            eq(projects.status, ProjectStatus.PAID),
+          ),
+        )
         .execute()
-        .catch((err) => console.error('[mintDownloadUrl] Failed to flip DELIVERED:', err));
+        .catch((err) =>
+          console.error('[mintDownloadUrl] Failed to flip DELIVERED:', err),
+        );
     }
 
     return { url };
+  }
+
+  async reissue(token: string): Promise<{ expiresAt: string }> {
+    const shareLink = await this.findByToken(token);
+
+    const [projectRow] = await this.client
+      .select({ status: projects.status })
+      .from(projects)
+      .where(eq(projects.id, shareLink.projectId));
+
+    if (!projectRow) throw new NotFoundException('Project not found');
+
+    const status = projectRow.status as ProjectStatus;
+    if (status !== ProjectStatus.PAID && status !== ProjectStatus.DELIVERED) {
+      throw new BadRequestException(
+        'Payment required to reissue download access.',
+      );
+    }
+
+    const retentionDays = this.configService.get<number>('RETENTION_DAYS', 30);
+    const expiresAt = calculateExpiresAt(retentionDays);
+
+    await this.client.transaction(async (tx) => {
+      await tx
+        .update(assets)
+        .set({ expiresAt })
+        .where(eq(assets.projectId, shareLink.projectId));
+
+      await tx
+        .update(shareLinks)
+        .set({
+          reissueCount: sql`${shareLinks.reissueCount} + 1`,
+          lastReissuedAt: new Date(),
+        })
+        .where(eq(shareLinks.token, token));
+    });
+
+    return { expiresAt: expiresAt.toISOString() };
   }
 
   async getAnnotations(token: string, assetId: string) {
@@ -169,7 +238,9 @@ export class ShareLinksService {
     const [asset] = await this.client
       .select()
       .from(assets)
-      .where(and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)));
+      .where(
+        and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)),
+      );
 
     if (!asset) throw new NotFoundException('Asset not found in this project');
 
@@ -187,40 +258,39 @@ export class ShareLinksService {
         duration: videoannotation.duration,
       })
       .from(collaborations)
-      .leftJoin(annotationcoordinates, eq(collaborations.id, annotationcoordinates.collabId))
-      .leftJoin(videoannotation, eq(collaborations.id, videoannotation.collabId))
+      .leftJoin(
+        annotationcoordinates,
+        eq(collaborations.id, annotationcoordinates.collabId),
+      )
+      .leftJoin(
+        videoannotation,
+        eq(collaborations.id, videoannotation.collabId),
+      )
       .where(eq(collaborations.assetId, assetId));
 
-    const resultsMap = new Map<string, any>();
-    for (const r of rows) {
-      if (!resultsMap.has(r.collabId)) {
-        resultsMap.set(r.collabId, {
-          id: r.collabId,
-          assetId,
-          commentText: r.commentText,
-          collaboratorName: r.collaboratorName,
-          coordinates: null,
-          video: null,
-        });
-      }
-      const current = resultsMap.get(r.collabId);
-      if (r.coordId) {
-        current.coordinates = { id: r.coordId, coordX: r.coordX, coordY: r.coordY, boundingBox: r.boundingBox };
-      }
-      if (r.videoAnnId) {
-        current.video = { id: r.videoAnnId, timestampSeconds: r.timestampSeconds, duration: r.duration };
-      }
-    }
-    return Array.from(resultsMap.values());
+    return buildAnnotationMap(rows, (r) => ({
+      id: r.collabId,
+      assetId,
+      commentText: r.commentText,
+      collaboratorName: r.collaboratorName,
+      coordinates: null,
+      video: null,
+    }));
   }
 
-  async createAnnotation(token: string, assetId: string, dto: CreateAnnotationDto) {
+  async createAnnotation(
+    token: string,
+    assetId: string,
+    dto: CreateAnnotationDto,
+  ) {
     const shareLink = await this.findByToken(token);
 
     const [asset] = await this.client
       .select()
       .from(assets)
-      .where(and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)));
+      .where(
+        and(eq(assets.id, assetId), eq(assets.projectId, shareLink.projectId)),
+      );
 
     if (!asset) throw new NotFoundException('Asset not found in this project');
 
@@ -234,31 +304,41 @@ export class ShareLinksService {
         })
         .returning();
 
-      let newCoords: any = null;
+      let newCoords: typeof annotationcoordinates.$inferSelect | null = null;
       if (dto.coordinates) {
         const [coordRow] = await tx
           .insert(annotationcoordinates)
           .values({
             collabId: newCollab.id,
-            coordX: dto.coordinates.coordX != null ? String(dto.coordinates.coordX) : null,
-            coordY: dto.coordinates.coordY != null ? String(dto.coordinates.coordY) : null,
+            coordX:
+              dto.coordinates.coordX != null
+                ? String(dto.coordinates.coordX)
+                : null,
+            coordY:
+              dto.coordinates.coordY != null
+                ? String(dto.coordinates.coordY)
+                : null,
             boundingBox: dto.coordinates.boundingBox ?? null,
           })
           .returning();
-        newCoords = coordRow;
+        newCoords = coordRow ?? null;
       }
 
-      let newVideo: any = null;
+      let newVideo: typeof videoannotation.$inferSelect | null = null;
       if (dto.video) {
         const [videoRow] = await tx
           .insert(videoannotation)
           .values({
             collabId: newCollab.id,
-            timestampSeconds: dto.video.timestampSeconds != null ? String(dto.video.timestampSeconds) : null,
-            duration: dto.video.duration != null ? String(dto.video.duration) : null,
+            timestampSeconds:
+              dto.video.timestampSeconds != null
+                ? String(dto.video.timestampSeconds)
+                : null,
+            duration:
+              dto.video.duration != null ? String(dto.video.duration) : null,
           })
           .returning();
-        newVideo = videoRow;
+        newVideo = videoRow ?? null;
       }
 
       return {
@@ -266,8 +346,21 @@ export class ShareLinksService {
         assetId,
         commentText: newCollab.commentText,
         collaboratorName: newCollab.collaboratorName,
-        coordinates: newCoords ? { id: newCoords.id, coordX: newCoords.coordX, coordY: newCoords.coordY, boundingBox: newCoords.boundingBox } : null,
-        video: newVideo ? { id: newVideo.id, timestampSeconds: newVideo.timestampSeconds, duration: newVideo.duration } : null,
+        coordinates: newCoords
+          ? {
+              id: newCoords.id,
+              coordX: newCoords.coordX,
+              coordY: newCoords.coordY,
+              boundingBox: newCoords.boundingBox,
+            }
+          : null,
+        video: newVideo
+          ? {
+              id: newVideo.id,
+              timestampSeconds: newVideo.timestampSeconds,
+              duration: newVideo.duration,
+            }
+          : null,
       };
     });
   }

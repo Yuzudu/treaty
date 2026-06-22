@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
+import { calculateExpiresAt } from '../../common/date.utils';
 import { ProjectStatus } from '@treaty/shared';
 import { ConfigService } from '@nestjs/config';
 import { DRIZZLE_DB, type DrizzleDB } from '../db/db.module';
@@ -73,7 +74,10 @@ export class WebhooksService {
       return;
     }
 
-    if (existing.payoutStatus === 'PAID' || existing.payoutStatus === 'CANCELLED') {
+    if (
+      existing.payoutStatus === 'PAID' ||
+      existing.payoutStatus === 'CANCELLED'
+    ) {
       return;
     }
 
@@ -82,7 +86,10 @@ export class WebhooksService {
       .from(projects)
       .where(eq(projects.id, existing.projectId!));
 
-    if (!project || project.status !== ProjectStatus.AWAITING_PAYMENT) {
+    if (
+      !project ||
+      (project.status as ProjectStatus) !== ProjectStatus.AWAITING_PAYMENT
+    ) {
       this.logger.warn(
         `Late PAID webhook for paymentIntentId=${payload.external_id}; project is in ${project?.status ?? 'unknown'} — skipping`,
       );
@@ -90,7 +97,7 @@ export class WebhooksService {
     }
 
     const retentionDays = this.configService.get<number>('RETENTION_DAYS', 30);
-    const expiresAt = new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000);
+    const expiresAt = calculateExpiresAt(retentionDays);
 
     await this.client.transaction(async (tx) => {
       await tx
@@ -156,7 +163,9 @@ export class WebhooksService {
       .where(eq(transactions.paymentIntentId, externalId));
 
     if (!existing) {
-      this.logger.warn(`EXPIRED webhook for unknown paymentIntentId=${externalId}`);
+      this.logger.warn(
+        `EXPIRED webhook for unknown paymentIntentId=${externalId}`,
+      );
       return;
     }
 

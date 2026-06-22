@@ -18,6 +18,7 @@ interface MockPaymentProvider {
     Promise<{ url: string; externalId: string }>,
     [Record<string, unknown>]
   >;
+  expireInvoice: jest.Mock<Promise<void>, [string]>;
   verifyWebhookToken: jest.Mock<boolean, [string]>;
 }
 
@@ -79,6 +80,7 @@ describe('OrdersService', () => {
         Promise<{ url: string; externalId: string }>,
         [Record<string, unknown>]
       >(),
+      expireInvoice: jest.fn<Promise<void>, [string]>(),
       verifyWebhookToken: jest.fn<boolean, [string]>(),
     };
     mockShareLinksService = {

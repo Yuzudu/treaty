@@ -49,6 +49,7 @@ export const assets = pgTable('assets', {
   assetType: varchar('assettype'),
   fileUrl: text('fileurl'),
   watermarkedUrl: text('watermarkedurl'),
+  status: varchar('status').notNull().default('PROCESSING'),
   expiresAt: timestamp('expiresat', { withTimezone: true }),
 });
 
@@ -59,6 +60,8 @@ export const shareLinks = pgTable('share_links', {
     .references(() => projects.id)
     .notNull(),
   status: varchar('status', { length: 16 }).notNull().default('ACTIVE'),
+  reissueCount: integer('reissue_count').notNull().default(0),
+  lastReissuedAt: timestamp('last_reissued_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

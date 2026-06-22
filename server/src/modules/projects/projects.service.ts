@@ -89,7 +89,7 @@ export class ProjectsService {
 
     // Reprice: cancel the in-flight invoice before returning to PREVIEW_SHARED
     if (
-      project.status === ProjectStatus.AWAITING_PAYMENT &&
+      (project.status as ProjectStatus) === ProjectStatus.AWAITING_PAYMENT &&
       dto.to === ProjectStatus.PREVIEW_SHARED
     ) {
       await this.ordersService.cancelPendingOrder(id);
@@ -109,7 +109,10 @@ export class ProjectsService {
       await this.shareLinksService.revoke(id);
       shareToken = (await this.shareLinksService.create(id)).token;
       // Clear download expiry so revived projects don't inherit old delivery window
-      await this.client.update(assets).set({ expiresAt: null }).where(eq(assets.projectId, id));
+      await this.client
+        .update(assets)
+        .set({ expiresAt: null })
+        .where(eq(assets.projectId, id));
     }
 
     if (dto.to === ProjectStatus.DRAFT || dto.to === ProjectStatus.EXPIRED) {
@@ -118,7 +121,9 @@ export class ProjectsService {
 
     if (dto.to === ProjectStatus.AWAITING_PAYMENT) {
       if (!dto.priceCents || dto.priceCents <= 0) {
-        throw new BadRequestException('Price is required and must be greater than 0.');
+        throw new BadRequestException(
+          'Price is required and must be greater than 0.',
+        );
       }
 
       const [creator] = await this.client
@@ -128,9 +133,13 @@ export class ProjectsService {
 
       if (creator?.paymentAccountStatus !== 'LIVE') {
         if (!creator?.paymentAccountStatus) {
-          throw new BadRequestException('Connect your payout account in Settings before accepting payments.');
+          throw new BadRequestException(
+            'Connect your payout account in Settings before accepting payments.',
+          );
         }
-        throw new BadRequestException('Your payout account is still being verified. This usually takes 3–5 business days.');
+        throw new BadRequestException(
+          'Your payout account is still being verified. This usually takes 3–5 business days.',
+        );
       }
     }
 
@@ -158,6 +167,10 @@ export class ProjectsService {
       throw new ConflictException('Project status changed concurrently, retry');
     }
 
-    return { ...updated, shareToken: shareToken ?? null, thumbnailUrl: project.thumbnailUrl };
+    return {
+      ...updated,
+      shareToken: shareToken ?? null,
+      thumbnailUrl: project.thumbnailUrl,
+    };
   }
 }

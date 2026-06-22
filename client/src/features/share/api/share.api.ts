@@ -13,4 +13,6 @@ export const shareApi = {
     apiFetch<SharePreviewDTO>(`/share-links/${token}/preview`),
   getDownloadUrl: (token: string, assetId: string) =>
     apiFetch<{ url: string }>(`/share-links/${token}/assets/${assetId}/download`),
+  reissue: (token: string) =>
+    apiFetch<{ expiresAt: string }>(`/share-links/${token}/reissue`, { method: 'POST' }),
 }

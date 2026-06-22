@@ -94,7 +94,7 @@ describe('XenditPaymentProvider', () => {
       amountCents: 50000,
       currency: 'PHP',
       platformFeeCents: 500,
-      shareToken: 'tok_abc',
+      token: 'tok_abc',
     });
 
     expect(result).toEqual({
