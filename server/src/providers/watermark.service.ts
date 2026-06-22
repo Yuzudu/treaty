@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as sharp from 'sharp';
-import * as ffmpeg from 'fluent-ffmpeg';
+import sharp from 'sharp';
+import ffmpeg from 'fluent-ffmpeg';
 import { path as ffmpegPath } from '@ffmpeg-installer/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -13,36 +13,29 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 export class WatermarkService {
   private readonly logger = new Logger(WatermarkService.name);
 
-  /**
-   * Applies a text watermark to an image buffer and returns the processed buffer.
-   */
   async watermarkImage(buffer: Buffer): Promise<Buffer> {
     try {
-      const image = (sharp as any)(buffer);
+      const image = sharp(buffer);
       const metadata = await image.metadata();
       const width = metadata.width ?? 800;
       const height = metadata.height ?? 600;
 
-      // Scale down image dimensions for preview to reduce resolution
       const targetWidth = Math.min(width, 1000);
       const scaleFactor = targetWidth / width;
       const targetHeight = Math.floor(height * scaleFactor);
 
-      // Generate a staggered grid of watermark text elements to prevent overlap and look smooth
       const cols = 3;
       const rows = 3;
       let textElements = '';
       const fontSize = Math.max(10, Math.floor(targetWidth / 32));
 
       for (let r = 0; r < rows; r++) {
-        // Offset alternate rows horizontally to stagger the watermarks and prevent overlap
-        const offsetFactor = (r % 2 === 0) ? 0 : 0.5;
+        const offsetFactor = r % 2 === 0 ? 0 : 0.5;
         for (let c = 0; c < cols; c++) {
           const x = Math.floor((c + 0.5 + offsetFactor) * (targetWidth / cols));
           const y = Math.floor((r + 0.5) * (targetHeight / rows));
-          
-          // Only render the watermark if it fits horizontally within the image boundary
-          if (x < targetWidth - (fontSize * 3)) {
+
+          if (x < targetWidth - fontSize * 3) {
             textElements += `
               <text x="${x}" y="${y}" dominant-baseline="middle" text-anchor="middle" class="watermark">
                 PREVIEW - DO NOT USE
@@ -76,7 +69,6 @@ export class WatermarkService {
         },
       ]);
 
-      // Down-compress image quality
       const format = metadata.format;
       if (format === 'png') {
         pipeline = pipeline.png({ quality: 40, compressionLevel: 9 });
@@ -88,53 +80,64 @@ export class WatermarkService {
 
       return await pipeline.toBuffer();
     } catch (error) {
-      this.logger.error(`Failed to watermark image: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to watermark image: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
 
-  /**
-   * Applies a text watermark to a video buffer and returns the processed buffer.
-   */
   async watermarkVideo(buffer: Buffer, fileExtension = 'mp4'): Promise<Buffer> {
     const tempDir = os.tmpdir();
-    const inputPath = path.join(tempDir, `input_${randomUUID()}.${fileExtension}`);
-    const outputPath = path.join(tempDir, `output_${randomUUID()}.${fileExtension}`);
+    const inputPath = path.join(
+      tempDir,
+      `input_${randomUUID()}.${fileExtension}`,
+    );
+    const outputPath = path.join(
+      tempDir,
+      `output_${randomUUID()}.${fileExtension}`,
+    );
 
     try {
       await fs.promises.writeFile(inputPath, buffer);
     } catch (error) {
-      this.logger.error(`Failed to write temp video input: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to write temp video input: ${(error as Error).message}`,
+      );
       throw error;
     }
 
     return new Promise<Buffer>((resolve, reject) => {
       ffmpeg(inputPath)
         .videoFilters(
-          "drawtext=text='PREVIEW - DO NOT USE':fontcolor=white@0.3:fontsize=h/20:x=(w-text_w)/2:y=(h-text_h)/2:shadowcolor=black@0.2:shadowx=2:shadowy=2"
+          "drawtext=text='PREVIEW - DO NOT USE':fontcolor=white@0.3:fontsize=h/20:x=(w-text_w)/2:y=(h-text_h)/2:shadowcolor=black@0.2:shadowx=2:shadowy=2",
         )
         .output(outputPath)
-        .on('end', async () => {
-          try {
-            const resultBuffer = await fs.promises.readFile(outputPath);
-            // Cleanup temp files asynchronously
-            await Promise.all([
-              fs.promises.unlink(inputPath).catch(() => {}),
-              fs.promises.unlink(outputPath).catch(() => {}),
-            ]);
-            resolve(resultBuffer);
-          } catch (err) {
-            this.logger.error(`Failed to read temp watermarked video: ${(err as Error).message}`);
-            reject(err);
-          }
+        .on('end', () => {
+          void (async () => {
+            try {
+              const resultBuffer = await fs.promises.readFile(outputPath);
+              await Promise.all([
+                fs.promises.unlink(inputPath).catch(() => {}),
+                fs.promises.unlink(outputPath).catch(() => {}),
+              ]);
+              resolve(resultBuffer);
+            } catch (err) {
+              this.logger.error(
+                `Failed to read temp watermarked video: ${(err as Error).message}`,
+              );
+              reject(err instanceof Error ? err : new Error(String(err)));
+            }
+          })();
         })
-        .on('error', async (err) => {
+        .on('error', (err: Error) => {
           this.logger.error(`FFmpeg video watermarking error: ${err.message}`);
-          await Promise.all([
+          void Promise.all([
             fs.promises.unlink(inputPath).catch(() => {}),
             fs.promises.unlink(outputPath).catch(() => {}),
-          ]);
-          reject(err);
+          ]).finally(() => {
+            reject(err);
+          });
         })
         .run();
     });

@@ -69,7 +69,7 @@ describe('WebhooksService', () => {
       mockDb as unknown as DrizzleDB,
       mockPaymentProvider as unknown as PaymentProvider,
       mockShareLinks as unknown as ShareLinksService,
-      mockConfigService as any,
+      mockConfigService as unknown as import('@nestjs/config').ConfigService,
     );
   });
 
@@ -157,7 +157,7 @@ describe('WebhooksService', () => {
     expect(mockDb.transaction).toHaveBeenCalled();
     expect(txUpdateCalls).toEqual([
       { status: ProjectStatus.PAID },
-      { expiresAt: expect.any(Date) },
+      { expiresAt: expect.any(Date) as unknown as Date },
       { payoutStatus: 'PAID' },
     ]);
   });

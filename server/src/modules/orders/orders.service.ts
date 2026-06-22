@@ -68,7 +68,7 @@ export class OrdersService {
     return {
       onboarded: true,
       active: user.paymentAccountStatus === 'LIVE',
-      status: user.paymentAccountStatus as string | null,
+      status: user.paymentAccountStatus,
     };
   }
 
@@ -90,7 +90,7 @@ export class OrdersService {
     const [creator] = await this.client
       .select()
       .from(users)
-      .where(eq(users.id, project.userId!));
+      .where(eq(users.id, project.userId));
     if (!creator?.paymentAccountId) {
       throw new ConflictException(
         'Creator has not completed payment onboarding',

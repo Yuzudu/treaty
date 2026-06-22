@@ -37,7 +37,7 @@ export class AssetsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 209715200 } }))
   upload(
     @Req() req: AuthRequest,
     @Param('projectId', ParseUUIDPipe) projectId: string,

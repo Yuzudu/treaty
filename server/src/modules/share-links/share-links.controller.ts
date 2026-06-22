@@ -7,6 +7,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ShareLinksService } from './share-links.service';
 import { SupabaseAuthGuard } from '../../guards/supabase-auth.guard';
 import { CreateAnnotationDto } from './dto/create-annotation.dto';
@@ -45,6 +46,13 @@ export class ShareLinksController {
     @Param('assetId', ParseUUIDPipe) assetId: string,
   ) {
     return this.shareLinksService.getAnnotations(token, assetId);
+  }
+
+  @Post(':token/reissue')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @UseGuards(ThrottlerGuard)
+  async reissue(@Param('token') token: string) {
+    return this.shareLinksService.reissue(token);
   }
 
   @Post(':token/assets/:assetId/annotations')

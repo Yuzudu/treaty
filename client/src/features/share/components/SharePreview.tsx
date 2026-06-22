@@ -10,6 +10,7 @@ import { ProjectStatus } from '@treaty/shared'
 import { ApiError } from '@/lib/api-client'
 import { useCheckout } from '@/features/payment'
 import { shareApi } from '../api/share.api'
+import { useReissue } from '../hooks/useReissue'
 
 const STALL_MS = 90_000
 
@@ -42,6 +43,7 @@ export function SharePreview({ token, paying = false, failed = false }: SharePre
   })
 
   const { mutate: checkout, isPending: checkingOut } = useCheckout()
+  const { mutate: reissue, isPending: reissuing } = useReissue(token)
 
   async function handleDownload(assetId: string) {
     if (downloadingId) return
@@ -97,6 +99,8 @@ export function SharePreview({ token, paying = false, failed = false }: SharePre
       })
     : null
 
+  const isExpired = preview.expiresAt ? new Date(preview.expiresAt) < new Date() : false
+
   return (
     <div className="space-y-6">
       <div>
@@ -113,9 +117,27 @@ export function SharePreview({ token, paying = false, failed = false }: SharePre
           </p>
           {formattedExpiry && (
             <p className="text-xs text-green-700 dark:text-green-400">
-              Available until {formattedExpiry}
+              Download access available until {formattedExpiry} — you can renew after expiry
             </p>
           )}
+        </div>
+      )}
+
+      {isPaid && isExpired && (
+        <div className="p-5 rounded-xl border border-border bg-card space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Download window has closed</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your files are still available — renew your access window to download them again.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => reissue()}
+            disabled={reissuing}
+          >
+            {reissuing ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Renewing…</> : 'Renew download access'}
+          </Button>
         </div>
       )}
 
@@ -218,7 +240,7 @@ export function SharePreview({ token, paying = false, failed = false }: SharePre
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/60 px-2 py-0.5 rounded border border-border/20">
                   {asset.assetType}
                 </span>
-                {isPaid && (
+                {isPaid && !isExpired && (
                   <Button
                     variant="ghost"
                     size="sm"

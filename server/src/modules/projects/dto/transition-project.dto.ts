@@ -10,7 +10,7 @@ import { ProjectStatus } from '@treaty/shared';
 
 export class TransitionProjectDto {
   @IsEnum(ProjectStatus)
-  to: ProjectStatus;
+  to!: ProjectStatus;
 
   @ValidateIf(
     (dto: TransitionProjectDto) => dto.to === ProjectStatus.AWAITING_PAYMENT,
